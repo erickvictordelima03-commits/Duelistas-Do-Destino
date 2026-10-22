@@ -1,0 +1,3267 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Duelistas Do Destino !</title>
+    <style>
+
+  * { box-sizing: border-box; }
+    body, html { margin: 0; padding: 0; min-height: 100vh; width: 100vw; overflow-x: hidden; overflow-y: auto; font-family: 'Segoe UI', sans-serif; background: #000; color: white; }
+    
+    #auth-screen, .bg-base { background-image: url('deuses_celestial 1.png'); background-size: cover; background-position: center; background-repeat: no-repeat; }
+    #auth-screen { height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; position: absolute; z-index: 1000; }
+    .login-box { background: rgba(0, 0, 0, 0.95); padding: 15px 30px; border-radius: 12px; border: 2px solid #888888; width: 350px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,1); }
+    .login-box h2 { color: #aaaaaa; margin-bottom: 12px; font-size: 1.3rem; text-transform: uppercase; }
+    .login-box input { width: 100%; padding: 8px 12px; margin: 4px 0; background: #000; border: 1px solid #888888; color: white; border-radius: 5px; outline: none; }
+    .btn-login { width: 100%; padding: 8px 12px; background: #555555; border: 1px solid #888888; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; margin-top: 8px; font-size: 1rem; text-transform: uppercase; }
+    .btn-login:hover { background: #777777; }
+    .auth-link { color: #aaaaaa; font-size: 0.85rem; display: block; margin-top: 6px; cursor: pointer; text-decoration: underline; }
+
+    #game-screen { display: none; min-height: 100vh; width: 100vw; }
+    .bg-base { min-height: 100vh; width: 100%; display: flex; box-shadow: inset 0 0 0 1000px rgba(0,0,0,0.85); }
+    
+    .sidebar, .player-panel { width: 260px; background: #0a0f1a; padding: 20px; border-right: 2px solid #888888; display: flex; flex-direction: column; }
+    .player-panel { border-right: none; border-left: 2px solid #888888; }
+    .content { flex: 1; padding: 20px; overflow-y: visible; display: flex; flex-direction: column; align-items: center; }
+
+    .menu-title { color: #aaaaaa; text-align: center; margin-bottom: 30px; font-size: 1.5rem; letter-spacing: 2px; }
+    .btn-gold-menu { width: 100%; padding: 12px; background: #555555; border: 1px solid #888888; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; margin-bottom: 10px; }
+    .btn-dark-menu { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; margin-bottom: 10px; }
+
+    #admin-area, #loja-area, #deck-area { display: none; width: 100%; max-width: 95%; background: rgba(0,0,0,0.6); border: 2px solid #888888; border-radius: 15px; padding: 25px; margin-top: 20px; }
+    .user-card { background: rgba(255,255,255,0.07); margin-bottom: 15px; padding: 15px; border-radius: 8px; border-left: 5px solid #888888; }
+    
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .controls button { border: none; padding: 8px 12px; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
+    .btn-green { background: #28a745; }
+    .btn-red { background: #dc3545; }
+    .btn-blue { background: #007bff; }
+    .btn-orange { background: #fd7e14; }
+
+    .info-box { background: #0d1424; border: 1px solid #888888; border-radius: 10px; padding: 20px; margin: 20px 0; }
+    .btn-sair-final { background: #ff0000; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; font-size: 0.9rem; }
+
+    /* LOJA FIXADA EM 4 COLUNAS EXATAS */
+    #loja-container { 
+        display: grid; 
+        grid-template-columns: repeat(4, 160px); 
+        gap: 20px; 
+        justify-content: center; 
+        margin-top: 10px; 
+        overflow-x: auto; 
+        width: 100%; 
+    }
+    .deck-card { background: rgba(255, 255, 255, 0.1); border: 2px solid #888888; border-radius: 10px; padding: 10px; width: 160px; min-width: 160px; text-align: center; flex-shrink: 0; }
+    .deck-card img { width: 90px; height: auto; border-radius: 5px; margin: 0 auto; display: block; cursor: pointer; }
+
+    .deck-price { font-size: 0.85rem; color: #aaaaaa; margin-bottom: 10px; font-weight: bold; }
+    .btn-buy { width: 100%; padding: 8px; margin-top: 5px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .buy-pt { background: #00bcd4; color: black; }
+    .buy-cred { background: #8bc34a; color: black; }
+    
+    /* FIXADO EM 6 COLUNAS COM ROLAGEM SE A TELA FOR MENOR */
+    .grid-cartas-deck { 
+        display: grid; 
+        grid-template-columns: repeat(6, 95px); 
+        gap: 10px; 
+        width: 100%; 
+        margin-bottom: 20px; 
+        background: rgba(255,255,255,0.05); 
+        padding: 12px; 
+        border-radius: 8px; 
+        justify-content: center; 
+        overflow-x: auto; 
+    }
+
+    .carta-item-mini { 
+        width: 95px; 
+        min-width: 95px; 
+        flex-shrink: 0; 
+    }
+
+    .carta-item-mini img { 
+        width: 95px; 
+        height: auto; 
+        border-radius: 4px; 
+        border: 1px solid #555; 
+        cursor: pointer; 
+        display: block; 
+        object-fit: contain; 
+    }
+
+    #modal-deck { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; overflow-y: auto; padding: 40px; }
+    .grid-cartas { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto; }
+    .carta-item img { width: 100%; border-radius: 5px; border: 1px solid #555; cursor: pointer; transform: scale(0.8); }
+
+    #modal-detalhe { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
+    .detalhe-box { display: flex; background: #1a1a1a; border: 2px solid #888888; border-radius: 15px; max-width: 800px; width: 100%; padding: 20px; gap: 20px; position: relative; }
+    .detalhe-img { width: 300px; border-radius: 10px; }
+    .status-badge { background: #333; padding: 10px; border-radius: 5px; margin: 10px 0; font-weight: bold; font-family: monospace; font-size: 1.2rem; }
+    .close-btn { position: absolute; top: 10px; right: 20px; font-size: 2rem; cursor: pointer; color: #888888; }
+
+    .setas-deck { display: flex; justify-content: center; gap: 30px; margin-top: 20px; }
+    .seta-btn { font-size: 3rem; cursor: pointer; transition: transform 0.2s; background: none; border: none; }
+    .seta-btn:hover { transform: scale(1.2); }
+    .seta-verde { color: #28a745; }
+    .seta-vermelha { color: #dc3545; }
+    
+    /* ===== ESTILO DO RANKING GERAL (7 MELHORES) ===== */
+    .ranking-container {
+        background: rgba(0, 0, 0, 0.85);
+        border: 2px solid #888888;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 15px;
+        width: 100%;
+        max-width: 280px;
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+    }
+
+    .ranking-titulo {
+        color: #aaaaaa;
+        font-size: 1rem;
+        text-transform: uppercase;
+        text-align: center;
+        margin: 0 0 10px 0;
+        border-bottom: 1px solid #888888;
+        padding-bottom: 5px;
+        letter-spacing: 1px;
+    }
+
+    .ranking-lista {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        background: rgba(30, 30, 30, 0.9);
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #444;
+    }
+
+    .ranking-posicao {
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: #aaaaaa;
+        width: 24px;
+        text-align: center;
+    }
+
+    .ranking-foto {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid #888888;
+        margin-right: 8px;
+        object-fit: cover;
+    }
+
+    .ranking-info {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ranking-nome {
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 110px;
+    }
+
+    .ranking-nivel {
+        font-size: 0.7rem;
+        color: #aaa;
+    }
+
+    .ranking-stats {
+        font-size: 0.75rem;
+        text-align: right;
+        color: #00ffcc;
+        white-space: nowrap;
+    }
+
+    .ranking-stats .derrotas-cor {
+        color: #ff4444;
+    }
+
+    /* Destaque para o Top 1, 2 e 3 */
+    .top-1 { border-color: #ffffff; background: rgba(255, 255, 255, 0.15); }
+    .top-1 .ranking-posicao { color: #ffffff; font-size: 1.1rem; }
+    .top-2 { border-color: #c0c0c0; }
+    .top-3 { border-color: #cd7f32; }
+
+    </style>
+</head>
+<body>
+
+<div id="auth-screen">
+    <div class="login-box">
+        <h2 id="login-header">Duelistas Do Destino </h2>
+        <div id="reg-field" style="display: none;"><input type="text" id="reg-nome" placeholder="Nome de Duelista"></div>
+        <input type="email" id="email" placeholder="E-mail">
+        <input type="password" id="password" placeholder="Senha">
+        <button class="btn-login" id="btn-entrar">LOGAR</button>
+        <button class="btn-login" id="btn-cadastrar" style="display: none;">CRIAR CONTA</button>
+        <button class="btn-login" id="btn-recuperar" style="display: none;">ENVIAR LINK</button>
+        <span class="auth-link" onclick="telaReg()" id="link-reg">Criar Nova Conta</span>
+        <span class="auth-link" onclick="telaReset()" id="link-reset">Esqueci minha senha</span>
+        <span class="auth-link" onclick="telaLog()" id="link-voltar" style="display: none;">Voltar ao Login</span>
+    </div>
+</div>
+
+<div id="game-screen">
+    <div class="bg-base">
+        <aside class="sidebar">
+            <h2 class="menu-title">MENU</h2>
+            
+            <button class="btn-dark-menu" onclick="showHome(); document.getElementById('btn-cartas-submenu').style.display = 'none';">🏠 INÍCIO</button>
+            <button class="btn-dark-menu" onclick="showLoja(); document.getElementById('btn-cartas-submenu').style.display = 'block';">🛒 LOJA</button>
+            <button id="btn-cartas-submenu" class="btn-dark-menu" style="display: none; padding-left: 30px; background-color: #1a1a1a;">🃏 CARTAS</button>
+            <button class="btn-dark-menu" onclick="showDeck(); document.getElementById('btn-cartas-submenu').style.display = 'none';">🎴 MEU DECK</button>
+            <button class="btn-dark-menu" style="border: 1px solid #ffcc00;" onclick="funcaoRandom(); document.getElementById('btn-cartas-submenu').style.display = 'none';">🎲 RANDOM</button>
+            <button class="btn-dark-menu" onclick="showPerfil(); document.getElementById('btn-cartas-submenu').style.display = 'none';">👤 PERFIL DO DUELISTA</button>
+
+           <!-- BOTÃO DE AVISOS COM BADGE DE NOTIFICAÇÃO 🔴 -->
+            <button class="btn-dark-menu" style="position: relative;" onclick="showAvisos(); const sub = document.getElementById('btn-cartas-submenu'); if(sub) sub.style.display = 'none';">
+            📢 AVISOS
+            <span id="aviso-badge" style="display: none; position: absolute; top: 4px; right: 8px; background: red; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: bold; line-height: 16px; text-align: center; box-shadow: 0 0 5px red;">!</span>
+            </button>
+            
+           <!-- BOTÃO SEJA MEMBRO ⭐ -->
+            <button class="btn-dark-menu" style="background: linear-gradient(180deg, #28a745, #1e7e34); color: white; border: 1px solid #28a745; box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); font-weight: bold;" onclick="showMembro(); const sub = document.getElementById('btn-cartas-submenu'); if(sub) sub.style.display = 'none';">
+                ⭐ SEJA MEMBRO
+            </button>
+            
+            <button id="btn-admin-view" class="btn-gold-menu" style="display: none;" onclick="showAdmin(); const sub = document.getElementById('btn-cartas-submenu'); if(sub) sub.style.display = 'none';">
+            ⚙️ PAINEL ADMIN
+            </button>        
+
+            <!-- CONTAINER DO BANNER TRADICIONAIS 90x90 -->
+            <div class="banner-container-sidebar" style="margin-top: 15px; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+                <script>
+                  atOptions = {
+                    'key' : '5ad9f7e140d9daeb77d094b2c3e67357****',
+                    'format' : 'iframe',
+                    'height' : 90,
+                    'width' : 90,
+                    'params' : {}
+                  };
+                </script>
+                <script src="https://www.highrevenueformat.com/5ad9f7e140d9daeb77d094b2c3e67357/invoke.js"></script>
+            </div>
+        </aside>
+
+       <!-- ÁREA PRINCIPAL DE CONTEÚDO -->
+        <main class="content">
+            
+            <!-- HOME / BOAS-VINDAS -->
+            <div id="home-msg">
+                <!-- ANÚNCIO ACIMA DO BEM-VINDO -->
+                <div style="width: 100%; display: flex; justify-content: center; align-items: center; margin-bottom: 15px; overflow: hidden;">
+                    <iframe srcdoc="
+                        <!DOCTYPE html>
+                        <html>
+                        <head><style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; }</style></head>
+                        <body>
+                            <script>
+                              atOptions = {
+                                'key' : 'b6d82ecd7fd98ffe66407c1726db6a19****',
+                                'format' : 'iframe',
+                                'height' : 90,
+                                'width' : 728,
+                                'params' : {}
+                              };
+                            </script>
+                            <script src=&quot;https://missiondifferentyawn.com/b6d82ecd7fd98ffe66407c1726db6a19/invoke.js&quot;></script>
+                        </body>
+                        </html>
+                    " width="728" height="90" style="border:none; max-width: 100%; overflow: hidden;"></iframe>
+                </div>
+
+                <h1 style="color:#ffcc00; font-size: 2.5rem; text-align: center;">BEM-VINDO ! </h1>
+                
+                <!-- IMAGEM "É HORA DO DUELO!" ADICIONADA -->
+                <div style="text-align: center; margin: 15px 0;">
+                    <img src="duelistas_do_destino.png" alt="É Hora do Duelo" style="max-width: 900px; width: 100%; height: auto; display: block; margin: 0 auto;">
+                </div>
+
+                <p style="text-align: center;">Selecione uma opção no menu lateral.</p>
+            
+                <!-- CARTAS DOS DEUSES (RESTAURADAS) -->
+<div class="deuses-boas-vindas" style="display: flex; justify-content: center; gap: 20px; margin-top: 25px; flex-wrap: wrap;">
+    <div class="card-deus" style="text-align: center; max-width: 120px; cursor: pointer;">
+        <img src="Chatsi, o Intercessor Celestial A-98.1.png" alt="Chatsi, o Intercessor Celestial A-98.1" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);" onclick="mostrarDetalheGeral('Chatsi, o Intercessor Celestial A-98.1.png', 'BOAS_VINDAS_CHATSI')">
+        <p style="font-size: 11px; margin-top: 5px; color: #ffd700; font-weight: bold; text-shadow: 1px 1px 2px #000;">Chatsi, o Intercessor Celestial A-98.1</p>
+    </div>
+    
+    <div class="card-deus" style="text-align: center; max-width: 120px; cursor: pointer;">
+        <img src="Bereshit, o Dragao Celestial do Ceus A-99.1.png" alt="Bereshit, o Dragao Celestial do Ceus A-99.1" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);" onclick="mostrarDetalheGeral('Bereshit, o Dragao Celestial do Ceus A-99.1.png', 'BOAS_VINDAS_BERESHIT')">
+        <p style="font-size: 11px; margin-top: 5px; color: #ff4500; font-weight: bold; text-shadow: 1px 1px 2px #000;">Bereshit, o Dragao Celestial do Ceus A-99.1</p>
+    </div>
+    
+    <div class="card-deus" style="text-align: center; max-width: 120px; cursor: pointer;">
+        <img src="Sof, o Dragao Celestial Da Luz A-97.1.png" alt="Sof, o Dragao Celestial Da Luz A-97.1" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);" onclick="mostrarDetalheGeral('Sof, o Dragao Celestial Da Luz A-97.1.png', 'BOAS_VINDAS_SOF')">
+        <p style="font-size: 11px; margin-top: 5px; color: #1e90ff; font-weight: bold; text-shadow: 1px 1px 2px #000;">Sof, o Dragao Celestial Da Luz A-97.1</p>
+    </div>
+</div>
+
+                <!-- VÍDEO DO GOOGLE DRIVE COM BLOQUEIO DE CLIQUE EXTERNO -->
+                <div class="video-container" style="margin: 35px auto 0 auto; text-align: center; width: 100%; max-width: 640px;">
+                    <h3 style="color: #ffcc00; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">A História dos Deuses Egípcios</h3>
+                    <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 15px;">🔊 Ajuste o volume diretamente nos controles do vídeo abaixo se necessário.</p>
+                    
+                    <!-- Container Relativo para prender a máscara -->
+                    <div style="position: relative; width: 100%; height: 360px; border: 2px solid #ffcc00; border-radius: 10px; box-shadow: 0 0 15px rgba(255, 204, 0, 0.3); overflow: hidden; background: #000;">
+                        
+                        <!-- MÁSCARA ANTI-CLIQUE (Bloqueia apenas a barra superior onde fica o botão de abrir janela externa) -->
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 55px; z-index: 10; background: transparent; cursor: default;"></div>
+                        
+                        <iframe 
+                            src="https://drive.google.com/file/d/1koLx9taY5eVJZJL3iVrKz5ivVt83-PDc/preview" 
+                            style="width: 100%; height: 100%; border: 0;" 
+                            allow="fullscreen; encrypted-media; picture-in-picture"
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PERFIL -->
+            <div id="perfil-area" style="display: none; width: 100%; max-width: 95%; background: rgba(0,0,0,0.7); border: 2px solid #ffcc00; border-radius: 15px; padding: 25px; margin-top: 20px; text-align: center;">
+                <h2 style="color:#ffcc00; margin-bottom: 25px; letter-spacing: 2px;">PERFIL DO DUELISTA</h2>
+                
+                <div style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                    <div style="position: relative; width: 150px; height: 150px; border: 3px solid #ffcc00; border-radius: 10px; background: #0a0f1a; overflow: hidden; cursor: pointer;" onclick="document.getElementById('perfil-upload-foto').click()">
+                        <img id="perfil-preview-foto" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <div id="perfil-placeholder-text" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #555; font-size: 0.9rem; font-weight: bold; padding: 10px;">Clique p/ Enviar Foto</div>
+                    </div>
+                    <input type="file" id="perfil-upload-foto" accept="image/*" style="display: none;">
+
+                    <div style="width: 100%;">
+                        <label style="color: #ffcc00; font-size: 0.9rem; display: block; margin-bottom: 5px; text-align: left;">NOME DO DUELISTA:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="perfil-input-nome" style="flex: 1; padding: 10px; background: #000; border: 1px solid #ffcc00; color: white; border-radius: 5px; outline: none; font-size: 1.1rem;">
+                            <button class="btn-green" style="padding: 10px 15px; font-weight: bold; border-radius: 5px; border: none; cursor: pointer;" onclick="salvarNomePerfil()">SALVAR</button>
+                        </div>
+                    </div>
+
+                    <div class="info-box" style="width: 100%; margin: 10px 0; background: #0d1424; text-align: left;">
+                        <h3 style="color: #ffcc00; border-bottom: 1px solid #ffcc00; padding-bottom: 8px; margin-top: 0;">🏆 STATUS DO RANK</h3>
+                        <p style="font-size: 1.1rem; margin: 12px 0;">⚔️ Vitórias: <span id="perfil-vitorias" style="color: lime; font-weight: bold;">0</span></p>
+                        <p style="font-size: 1.1rem; margin: 12px 0;">🏅 Posição no Rank: <span id="perfil-posicao-rank" style="color: #ffcc00; font-weight: bold;">Carregando...</span></p>
+                        <p style="font-size: 1.1rem; margin: 12px 0; display: flex; align-items: center; gap: 5px;">
+                            <img src="moeda_de_prata.png" alt="Prata" style="width: 18px; height: 18px; object-fit: contain;"> 
+                            <span style="color: #c0c0c0;">Prata:</span> <span id="perfil-pt" style="color: #c0c0c0; font-weight: bold;">0</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AVISOS -->
+            <div id="avisos-area" style="display: none; width: 100%; max-width: 95%; background: rgba(0,0,0,0.7); border: 2px solid #ffcc00; border-radius: 15px; padding: 25px; margin: 20px auto; text-align: center;">
+                <h2 style="color:#ffcc00; margin-bottom: 20px; letter-spacing: 2px;">📢 MURAL DE AVISOS</h2>
+
+                <!-- PAINEL DE CRIAÇÃO DO ADMIN (Inicia ESCONDIDO por padrão com display: none) -->
+                <div id="admin-criar-aviso-box" style="display: none; background: #0d1424; border: 1px dashed #ffcc00; border-radius: 10px; padding: 15px; margin-bottom: 25px; text-align: left;">
+                    <h3 style="color: #ffcc00; margin-top: 0;">⚙️ Adicionar Novo Aviso (Admin)</h3>
+                    
+                    <input type="text" id="aviso-titulo-input" placeholder="Título do Aviso..." style="width: 100%; padding: 10px; background: #000; border: 1px solid #ffcc00; color: white; border-radius: 5px; margin-bottom: 10px; box-sizing: border-box;">
+                    
+                    <textarea id="aviso-texto-input" placeholder="Escreva o texto do aviso aqui..." style="width: 100%; height: 80px; padding: 10px; background: #000; border: 1px solid #ffcc00; color: white; border-radius: 5px; margin-bottom: 10px; resize: vertical; box-sizing: border-box;"></textarea>
+
+                    <label style="color: #aaa; font-size: 0.85rem; display: block; margin-bottom: 5px;">Imagem do Aviso (Opcional):</label>
+                    <input type="file" id="aviso-imagem-input" accept="image/*" style="color: white; margin-bottom: 15px;">
+
+                    <button class="btn-green" onclick="publicarAviso()" style="padding: 10px 20px; font-weight: bold; border-radius: 5px; border: none; cursor: pointer;">PUBLICAR AVISO</button>
+                </div>
+
+                <!-- ONDE OS AVISOS SALVOS SERÃO CARREGADOS DINAMICAMENTE -->
+                <div id="lista-de-avisos" style="display: flex; flex-direction: column; gap: 15px; max-width: 700px; margin: 0 auto;"></div>
+            </div>
+
+            <!-- ÁREA SEJA MEMBRO ⭐ -->
+            <div id="membro-area" style="display: none; width: 100%; max-width: 95%; background: rgba(0, 0, 0, 0.85); border: 2px solid #28a745; border-radius: 15px; padding: 25px; margin: 20px auto; text-align: center; color: white;">
+                
+                <h2 style="color: #28a745; margin-bottom: 25px; text-shadow: 0 0 10px rgba(40, 167, 69, 0.5);">SEJA MEMBRO - PACOTES DE OURO</h2>
+
+                <!-- GRID DOS PACOTES (Lado a Lado) -->
+                <div style="display: flex; justify-content: center; align-items: stretch; gap: 20px; flex-wrap: wrap;">
+
+                    <!-- PACOTE BRONZE -->
+                    <div style="flex: 1; min-width: 220px; max-width: 280px; background: rgba(255, 255, 255, 0.05); border: 1px solid #cd7f32; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: space-between;">
+                        <h3 style="color: #cd7f32; margin: 0 0 10px 0; font-size: 20px; letter-spacing: 1px;">BRONZE</h3>
+                        <img src="moeda_de_broze.png" alt="Moeda de Bronze" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 15px;">
+                        <p style="font-size: 16px; font-weight: bold; margin: 10px 0; color: #e6a15c;">Compre 1000 ouro</p>
+                        <button class="btn-dark-menu" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%;" onclick="solicitarCompra('1000 Ouro - R$ 10,00')">
+                            R$ 10,00
+                        </button>
+                    </div>
+
+                    <!-- PACOTE PRATA -->
+                    <div style="flex: 1; min-width: 220px; max-width: 280px; background: rgba(255, 255, 255, 0.05); border: 1px solid #c0c0c0; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: space-between;">
+                        <h3 style="color: #c0c0c0; margin: 0 0 10px 0; font-size: 20px; letter-spacing: 1px;">PRATA</h3>
+                        <img src="moeda_de_prata.png" alt="Moeda de Prata" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 15px;">
+                        <p style="font-size: 16px; font-weight: bold; margin: 10px 0; color: #e0e0e0;">Compre 2500 moedas de ouro</p>
+                        <button class="btn-dark-menu" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%;" onclick="solicitarCompra('2500 Ouro - R$ 25,00')">
+                            R$ 25,00
+                        </button>
+                    </div>
+
+                    <!-- PACOTE OURO -->
+                    <div style="flex: 1; min-width: 220px; max-width: 280px; background: rgba(255, 255, 255, 0.05); border: 1px solid #ffd700; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: space-between;">
+                        <h3 style="color: #ffd700; margin: 0 0 10px 0; font-size: 20px; letter-spacing: 1px;">OURO</h3>
+                        <img src="moeda_de_ouro.png" alt="Moeda de Ouro" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 15px;">
+                        <p style="font-size: 16px; font-weight: bold; margin: 10px 0; color: #ffd700;">Compre 5000 moedas de ouro</p>
+                        <button class="btn-dark-menu" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%;" onclick="solicitarCompra('5000 Ouro - R$ 50,00')">
+                            R$ 50,00
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- DIVISÓRIA -->
+                <hr style="border: 0; height: 1px; background: #28a745; margin: 30px 0;">
+
+                <!-- SEÇÃO VIP HORA DO DUELO ⭐ -->
+                <div style="background: rgba(0, 0, 0, 0.6); border: 2px solid #ffd700; border-radius: 12px; padding: 20px; max-width: 650px; margin: 0 auto; box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);">
+                    
+                    <img src="hora-do-duelo-3.jpg" alt="É Hora do Duelo" style="width: 100%; max-width: 300px; height: auto; object-fit: contain; margin-bottom: 15px;">
+
+                    <h3 style="color: #ffd700; font-size: 22px; margin: 5px 0 15px 0; text-transform: uppercase;">
+                        Seja membro por apenas <span style="color: #28a745;">R$ 4,99 / mês</span>!
+                    </h3>
+
+                    <!-- BENEFÍCIOS -->
+                    <div style="text-align: left; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; font-size: 15px;">
+                        <h4 style="color: #28a745; margin-top: 0; margin-bottom: 10px; font-size: 17px;">🎁 BENEFÍCIOS EXCLUSIVOS:</h4>
+                        <p style="margin: 8px 0;"><strong>1 -</strong> Você ganha uma carta rara no momento da adesão + todo mês uma carta nova do jogo ao renovar!</p>
+                        <p style="margin: 8px 0;"><strong>2 -</strong> Ganhe moedas dobradas por duelos: de 100pt para 200pt por duelo!</p>
+                        <p style="margin: 8px 0;"><strong>3 -</strong> Ganhe 2000 moedas de prata na adesão + todo final de mês que você renovar!</p>
+                    </div>
+
+                    <!-- BOTÃO DE ADESÃO -->
+                    <button class="btn-dark-menu" style="background: linear-gradient(180deg, #28a745, #1e7e34); color: white; border: none; padding: 12px 30px; font-size: 18px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; max-width: 300px; box-shadow: 0 0 10px rgba(40, 167, 69, 0.6);" onclick="solicitarCompra('ADESÃO MEMBRO VIP', 'Plano Mensal - R$ 4,99/mês')">
+                        ⭐ ADESÃO (R$ 4,99)
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div id="loja-area">
+                <h2 style="color:#ffcc00; text-align: center;">LOJA DA ACADEMIA</h2>
+                <div id="loja-container">
+                    <div class="deck-card">
+                        <img src="Imperador Celestial das Tempestades A-46.1.png" alt="Cyber Blader" onclick="abrirDeckAlexis()">
+                        <h3>Deck Alexis</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>20.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">2000</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 20000, 'Deck Alexis')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 2000, 'Deck Alexis')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckAlexis()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Imperador Supremo da Noite A-59.1.png" alt="Deck Jaden" onclick="abrirDeckJaden()">
+                        <h3>Deck Jaden</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>25.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">2500</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 25000, 'Deck Jaden')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 2500, 'Deck Jaden')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckJaden()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="dragao de fogo de olhos azuis A-18.1.png" alt="Deck Joey" onclick="abrirDeckJoey()">
+                        <h3>Deck Joey</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>10.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">1000</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 10000, 'Deck Joey')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 1000, 'Deck Joey')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckJoey()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src=" ***** " alt="Deck Hamon" onclick="abrirDeckHamon()">
+                        <h3>Deck Hamon</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>40.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">4000</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 40000, 'Deck Hamon')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 4000, 'Deck Hamon')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckHamon()">VER CARTAS</button>
+                    </div>
+
+                    <!-- CONTAINER DO ANÚNCIO (CENTRALIZADO E OCURANDO A LINHA INTEIRA) -->
+                    <div style="grid-column: 1 / -1; width: 100%; display: flex; justify-content: center; align-items: center; margin: 20px 0;">
+                        <script>
+                            atOptions = {
+                                'key' : 'b6d82ecd7fd98ffe66407c1726db6a19****',
+                                'format' : 'iframe',
+                                'height' : 90,
+                                'width' : 728,
+                                'params' : {}
+                            };
+                        </script>
+                        <script src="https://missiondifferentyawn.com/b6d82ecd7fd98ffe66407c1726db6a19/invoke.js"></script>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Dragão Cibernético Final 1.jpg" alt="Deck Dragao Final" onclick="abrirDeckDragaoFinal()">
+                        <h3>Deck Dragao Final</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>38.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">3800</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 38000, 'Deck Dragao Final')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 3800, 'Deck Dragao Final')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckDragaoFinal()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Aglomerado de Dragões de Água 1.jpg" alt="Deck Agua" onclick="abrirDeckAgua()">
+                        <h3>Deck Agua</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>20.000</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">2000</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 20000, 'Deck Agua')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 2000, 'Deck Agua')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckAgua()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card" id="loja-deck-uria" style="display: none;">
+                        <img src="Uria, Senhor das Chamas Ardentes 1.jpg" alt="Deck Uria" onclick="abrirDeckUria()">
+                        <h3>Deck Uria</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>0</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">0</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 0, 'Deck Uria')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 0, 'Deck Uria')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckUria()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Sof, o Dragao Celestial Da Luz A-97.1.png" alt="Deck Sof" onclick="abrirDeckSof()">
+                        <h3>Deck Sof</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>999999</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">999999</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 999999, 'Deck Sof')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 999999, 'Deck Sof')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckSof()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Chatsi, o Intercessor Celestial A-98.1.png" alt="Deck Chatsi" onclick="abrirDeckChatsi()">
+                        <h3>Deck Chatsi</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>999999</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">999999</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 999999, 'Deck Slifer')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 999999, 'Deck Chatsi')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckChatsi()">VER CARTAS</button>
+                    </div>
+
+                    <div class="deck-card">
+                        <img src="Bereshit, o Dragao Celestial do Ceus A-99.1.png" alt="Deck Bereshit" onclick="abrirDeckBereshit()">
+                        <h3>Deck Bereshit</h3>
+                        <div class="deck-price" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center;">
+                            <span style="display: flex; align-items: center; gap: 4px; color: #c0c0c0;"><img src="moeda_de_prata.png" style="width:14px; height:14px; object-fit:contain;"> <span>999999</span> PRATA</span> 
+                            <span style="display: flex; align-items: center; gap: 4px;"><img src="moeda_de_ouro.png" style="width:14px; height:14px; object-fit:contain;"> <span style="color: #ffd700;">999999</span> OURO</span>
+                        </div>
+                        <button class="btn-buy" style="background-color: #b0b0b0; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-bottom: 5px;" onclick="comprarDeck('pt', 999999, 'Deck Obelisk')"><img src="moeda_de_prata.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-buy" style="background-color: #ffd700; color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;" onclick="comprarDeck('credit', 999999, 'Deck Bereshit')"><img src="moeda_de_ouro.png" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0px 0px 2px #000) drop-shadow(0px 0px 2px #000);"> COMPRAR</button>
+                        <button class="btn-gold-menu" style="margin-top:10px" onclick="abrirDeckBereshit()">VER CARTAS</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MEU DECK -->
+            <div id="deck-area">
+                <!-- ANÚNCIO ADSTERRA -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <script src="****https://missiondifferentyawn.com/c0/13/b1/c013b176ec724cb9491ac02841570baf.js****"></script>
+                </div>
+
+                <h2 style="color:#ffcc00; text-align: center;">BARALHO PRINCIPAL</h2>
+                <div class="grid-cartas-deck" id="meu-deck-list"></div>
+                
+                <h2 style="color:#ffcc00; text-align: center;">BARALHO DE FUSÕES</h2>
+                <div class="grid-cartas-deck" id="deck-fusoes-list"></div>
+                
+                <h2 style="color:#ffcc00; text-align: center;">BARALHO EXTRA (CONQUISTAS)</h2>
+                <div class="grid-cartas-deck" id="extra-deck-list"></div>
+            </div>
+
+            <!-- PAINEL ADMIN -->
+    <div id="admin-area">
+    <h2 style="color:#ffcc00; text-align: center; margin-bottom: 20px;">GESTÃO DE DUELISTAS</h2>
+    
+    <!-- CAMPO DE PESQUISA POR ID -->
+    <div style="margin-bottom: 15px;">
+        <input 
+            type="text" 
+            id="input-busca-id" 
+            placeholder="🔍 Pesquisar usuário por ID..." 
+            oninput="filtrarUsuariosPorId()"
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ffcc00; background: #222; color: #fff; font-size: 0.95rem;"
+        >
+    </div>
+
+    <div id="lista-jogadores"></div>
+</div>
+
+</main>
+
+        <!-- PAINEL LATERAL DIREITO DA INFO DO DUELISTA -->
+        <aside class="player-panel">
+            <h2 class="menu-title" id="display-nome">PLAYER</h2>
+            <div class="info-box">
+                <p style="display: flex; align-items: center; gap: 5px;">
+                    <img src="moeda_de_prata.png" alt="Prata" style="width: 16px; height: 16px; object-fit: contain;"> 
+                    <span style="color: #c0c0c0;">Prata:</span> <span id="val-pt" style="color: #c0c0c0;">0</span>
+                </p>
+                <p style="display: flex; align-items: center; gap: 5px;">
+                    <img src="moeda_de_ouro.png" alt="Ouro" style="width: 16px; height: 16px; object-fit: contain;"> 
+                    Ouro: <span id="val-cred" style="color: #ffd700;">0</span>
+                </p>
+                <button id="btn-logout" class="btn-sair-final">SAIR</button>
+            </div>
+
+            <div class="ranking-container" style="background: rgba(0, 0, 0, 0.85); border: 2px solid #ffcc00; border-radius: 8px; padding: 10px; margin-top: 15px; width: 100%; box-shadow: 0 0 15px rgba(255, 204, 0, 0.2);">
+                <h3 class="ranking-titulo" style="color: #ffcc00; font-size: 1rem; text-transform: uppercase; text-align: center; margin: 0 0 10px 0; border-bottom: 1px solid #ffcc00; padding-bottom: 5px; letter-spacing: 1px;">🏆 Top 7 Duelistas</h3>
+                <div id="ranking-geral-lista" class="ranking-lista" style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="text-align:center; font-size:0.8rem; color:#aaa; padding: 10px 0;">Carregando ranking...</div>
+                </div>
+            </div>
+
+            <!-- ANÚNCIO ABAIXO DO RANKING -->
+            <div style="margin-top: 15px; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+                <script async="async" data-cfasync="false" src="https://missiondifferentyawn.com/b4146201e4e46582554ba72ff7726aec/invoke.js****"></script>
+                <div id="container-b4146201e4e46582554ba72ff7726aec****"></div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- MODAIS -->
+<div id="modal-deck">
+    <h2 style="color:#ffcc00; text-align:center">CONTEÚDO DO DECK</h2>
+    <div class="grid-cartas" id="cartas-container"></div>
+    <button class="btn-gold-menu" style="width:200px; display:block; margin: 30px auto;" onclick="fecharModais()">VOLTAR</button>
+</div>
+
+<div id="modal-detalhe" onclick="this.style.display='none'">
+    <div class="detalhe-box" onclick="event.stopPropagation()">
+        <span class="close-btn" onclick="document.getElementById('modal-detalhe').style.display='none'">&times;</span>
+        <img src="" id="detalhe-img" class="detalhe-img">
+        <div class="detalhe-info">
+            <h2 id="detalhe-nome">NOME DA CARTA</h2>
+            <div id="detalhe-status" class="status-badge"></div>
+            <p id="detalhe-efeito" style="line-height:1.6"></p>
+            <div class="setas-deck">
+                <button class="seta-btn seta-verde" id="btn-mover-deck" title="Mover para Deck Principal/Fusões">&#9650;</button>
+                <button class="seta-btn seta-vermelha" id="btn-mover-extra" title="Mover para Extra Deck">&#9660;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut,
+    sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  import {
+    getFirestore,
+    doc,
+    onSnapshot,
+    collection,
+    updateDoc,
+    deleteDoc,
+    getDoc,
+    setDoc,
+    arrayUnion,
+    arrayRemove,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    orderBy,
+    limit,
+    serverTimestamp,
+    documentId
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  // 🔥 CONFIGURAÇÃO DO NOVO JOGO (Duelistas do Destino)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDys-a14NuZXewNPW1_y6NONVVMMzoh_As",
+    authDomain: "duelistas-do-destino-58732.firebaseapp.com",
+    projectId: "duelistas-do-destino-58732",
+    storageBucket: "duelistas-do-destino-58732.firebasestorage.app",
+    appId: "1:114415175686:web:0083082e594f4fbcc71b87"
+  };
+
+  // Inicializa o Firebase para o novo projeto
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Expor instâncias e funções do SDK no escopo global (window)
+  window.auth = auth;
+  window.db = db;
+  window.doc = doc;
+  window.getDoc = getDoc;
+  window.setDoc = setDoc;
+  window.updateDoc = updateDoc;
+  window.arrayUnion = arrayUnion;
+  window.arrayRemove = arrayRemove;
+  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+  window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+  window.sendPasswordResetEmail = sendPasswordResetEmail;
+  window.signOut = signOut;
+
+  // Variáveis globais do estado
+  window.meuDeckArray = [];
+  window.deckFusoesArray = [];
+  window.extraDeckArray = [];
+  window.cartaSelecionadaAtual = null;
+  window.currentUid = null;
+
+  // 🔐 CAPTURA UID DO USUÁRIO
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      window.currentUid = user.uid;
+    } else {
+      window.currentUid = null;
+    }
+  });
+
+  // ================= EMBARALHAR REAL (Fisher-Yates) ================= //
+  // function embaralhar(array) {
+  //   const novo = [...array];
+  //   for (let i = novo.length - 1; i > 0; i--) {
+  //     const j = Math.floor(Math.random() * (i + 1));
+  //     [novo[i], novo[j]] = [novo[j], novo[i]];
+  //   }
+  //   return novo;
+  // }
+
+  // ============== PARA ATIVAR O EMBARALHAR É SÓ APAGAR ESTA FUNÇÃO E DESCOMENTAR A DE CIMA ============= // 
+  window.embaralhar = function(array) {  
+    return [...array];
+  };
+
+// ===== WINDOW FUNCAO RANDOM ===== //
+window.funcaoRandom = async () => {
+
+  // 🔒 TRAVA DE SEGURANÇA CONTRA CLIQUE DUPLO NO CELULAR
+  if (window.executandoRandom) {
+    console.warn("⚠️ [BLOQUEIO] Requisição duplicada descartada.");
+    return;
+  }
+  window.executandoRandom = true;
+
+  try {
+
+    if (!currentUid) {
+      alert("Usuário não logado");
+      return;
+    }
+
+    // 🧹 BLINDAGEM 1: Limpa o ID da sala antiga no navegador logo no início
+    localStorage.removeItem("salaId");
+
+    // Detecta se é dispositivo móvel
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+    // 🆔 1. BUSCA O NOME REAL DO JOGADOR COM SEGURANÇA
+    const displayElement = document.getElementById("display-nome");
+    const userAtual = typeof auth !== "undefined" ? auth?.currentUser : null;
+
+    // Tenta pegar o nome do Auth do Firebase, do dataset ou do texto da tela
+    let nomeReal = userAtual?.displayName || displayElement?.dataset?.nomeOriginal || displayElement?.innerText || "Duelista";
+
+    // Evita capturar "BUSCANDO DUELISTA..." como nome do jogador
+    if (nomeReal === "BUSCANDO DUELISTA..." || !nomeReal.trim()) {
+      nomeReal = displayElement?.dataset?.nomeOriginal || userAtual?.displayName || "Duelista";
+    }
+
+    // Guarda no dataset para não perder o nome em futuras chamadas
+    if (displayElement && !displayElement.dataset.nomeOriginal && nomeReal !== "BUSCANDO DUELISTA...") {
+      displayElement.dataset.nomeOriginal = nomeReal;
+    }
+
+    const nome = nomeReal;
+
+    // 💾 Salva o nome também no localStorage para redundância na arena
+    localStorage.setItem("meuNome", nome);
+
+    // Altera o texto da tela APENAS APÓS garantir o salvamento do nome real
+    if (displayElement) displayElement.innerText = "BUSCANDO DUELISTA...";
+
+    const restaurarNomeTela = () => {
+      if (displayElement) displayElement.innerText = nome;
+    };
+
+    // Função interna para abrir/navegar para a arena
+    const abrirArena = () => {
+      restaurarNomeTela(); // Restaura o nome na tela antes de sair
+      if (isMobile) {
+        window.location.href = "arena.html";
+      } else {
+        window.open("arena.html", "_blank");
+      }
+    };
+
+    /* ================= PEGAR DECKS DO FIREBASE/ESTADO ================= */
+    const deckLocal = meuDeckArray || [];
+    const extraLocal = extraDeckArray || []; // Conquistas/Cards Extras
+    const fusoesLocal = deckFusoesArray || []; // 🔥 AS FUSÕES REAIS
+
+    /* ================= SALVAR NO LOCALSTORAGE ================= */
+    if (Array.isArray(deckLocal) && deckLocal.length >= 30) {
+      localStorage.setItem("deck", JSON.stringify(deckLocal));
+      localStorage.setItem("extra", JSON.stringify(extraLocal));
+      localStorage.setItem("deckFusoes", JSON.stringify(fusoesLocal)); // 🔥 Salva fusoes
+    }
+
+    if (!Array.isArray(deckLocal) || deckLocal.length < 30) {
+      alert("Seu deck precisa ter 30 cartas!");
+      // Restaura o texto original do display caso o deck não tenha cartas suficientes
+      const displayNomeElem = document.getElementById("display-nome");
+      if (displayNomeElem) displayNomeElem.innerText = nome;
+      return;
+    }
+
+    /* ================= BUSCAR SALAS DISPONÍVEIS ================= */
+    const salasRef = collection(db, "salas");
+    const q = query(salasRef, where("status", "==", "aguardando"));
+    const snap = await getDocs(q);
+
+    let salaEncontrada = null;
+    const agora = Date.now();
+    const TRES_MINUTOS = 3 * 60 * 1000; // Tempo máximo que uma sala pode esperar por jogador
+
+    for (const docSnap of snap.docs) {
+      const sala = docSnap.data();
+      const playersCount = Object.keys(sala.players || {}).length;
+      const tempoCriacao = sala.createdAt || 0;
+      const tempoDecorrido = agora - tempoCriacao;
+
+      // 🧹 LIMPEZA AUTOMÁTICA: Se a sala "aguardando" tem mais de 3 minutos, é zumbi/abandonada -> Deleta do Firestore
+      if (tempoCriacao > 0 && tempoDecorrido > TRES_MINUTOS) {
+        try {
+          await deleteDoc(doc(db, "salas", docSnap.id));
+          console.log(`🧹 [LIMPEZA AUTO] Sala antiga/abandonada ${docSnap.id} deletada do Firebase.`);
+        } catch (errClean) {
+          console.error("Erro ao deletar sala zumbi:", errClean);
+        }
+        continue; // Pula para a próxima sala
+      }
+
+      // 🧹 BLINDAGEM 2: Aceita APENAS salas ativas e recentes com 1 jogador, sem o atual e sem BOT
+      if (!salaEncontrada && playersCount === 1 && !sala.players?.[currentUid] && !sala.players?.["bot_ia_yugioh"]) {
+        salaEncontrada = docSnap;
+        break; // Encontrou uma sala válida recente, encerra a busca
+      }
+    }
+
+    /* ================= PREPARAR DECK E MÃO ================= */
+    const deckEmbaralhado = embaralhar(deckLocal);
+    const maoInicial = deckEmbaralhado.slice(0, 5);
+    const deckRestante = deckEmbaralhado.slice(5);
+
+    /* ================= PLAYER 2 (ENTRANDO NA SALA) ================= */
+    if (salaEncontrada) {
+      const salaId = salaEncontrada.id;
+      const salaRef = doc(db, "salas", salaId);
+
+      console.log("📌 [RANDOM J2] Sala encontrada! Registrando dados no Firebase...", nome);
+
+      // 1. O Jogador 2 apenas grava seus dados na nuvem e atualiza o status
+      await updateDoc(salaRef, {
+        [`players.${currentUid}`]: {
+          nome: nome,
+          lp: 8000,
+          deck: deckRestante,
+          mao: maoInicial,
+          fusoes: fusoesLocal  // 🔥 AGORA A SALA TEM A CHAVE FUSOES
+        },
+        [`field.${currentUid}`]: {
+          monstro: [null, null, null, null, null],
+          magia: [null, null, null, null, null],
+          gy: []
+        },
+
+        [`estado.invocacaoNormalUsada.${currentUid}`]: false,
+        status: "em_duelo"
+      });
+
+      localStorage.setItem("salaId", salaId);
+      localStorage.setItem("uid", currentUid);
+
+      // 2. 🔥 TRAVA DE SEGURANÇA: Aguarda o snapshot confirmar 2 jogadores
+      const desinscreverJ2 = onSnapshot(salaRef, (docSnapAtual) => {
+        if (docSnapAtual.exists()) {
+          const salaDados = docSnapAtual.data();
+          const quantidadePlayers = Object.keys(salaDados.players || {}).length;
+
+          console.log(`📊 [RANDOM J2] Verificando duelistas na sala: ${quantidadePlayers}/2`);
+
+          // SÓ ABRE A ARENA QUANDO REALMENTE COMPROVAR QUE HÁ DOIS JOGADORES NA SALA
+          if (quantidadePlayers === 2) {
+            console.log("⚔️ Ambos confirmados! Abrindo a arena para o Jogador 2.");
+            desinscreverJ2(); // Desliga o escutador em tempo real para evitar loops
+            
+            // 🧹 BLINDAGEM 3: Usa a função inteligente 'abrirArena()' em vez de window.open direto
+            abrirArena(); 
+          }
+        }
+      });
+      return;
+    }
+
+    /* ================= PLAYER 1 (CRIANDO A SALA) ================= */
+    console.log("📌 [RANDOM J1] Criando sala no Firebase para o jogador:", nome);
+
+    const novaSala = await addDoc(salasRef, {
+      players: {
+        [currentUid]: {
+          nome: nome,
+          lp: 8000,
+          deck: deckRestante,
+          mao: maoInicial,
+          fusoes: fusoesLocal  // 🔥 AGORA A SALA TEM A CHAVE FUSOES
+        }
+      },
+      field: {
+        [currentUid]: {
+          monstro: [null, null, null, null, null],
+          magia: [null, null, null, null, null],
+          gy: []
+
+        }
+      },
+      estado: {
+        faseAtual: "DP",
+        turnoDe: currentUid,
+        primeiroJogador: currentUid,
+        invocacaoNormalUsada: { [currentUid]: false }
+      },
+      status: "aguardando",
+      createdAt: Date.now()
+    });
+
+    const salaRef1 = doc(db, "salas", novaSala.id);
+
+    localStorage.setItem("salaId", novaSala.id);
+    localStorage.setItem("uid", currentUid);
+
+   // ===== 🤖 TEMPORIZADOR PARA ENTRADA DA IA COM O DECK DO JOEY FIXO ===== //
+    const timerBot = setTimeout(async () => {
+      const snapAtual = await getDoc(salaRef1);
+      if (snapAtual.exists()) {
+        const dadosAtualizados = snapAtual.data();
+
+        if (dadosAtualizados.status === "aguardando") {
+          const botUid = "bot_ia_yugioh";
+          console.log("🤖 O tempo de espera acabou! A IA está assumindo o Player 2 com o Deck do Joey...");
+
+          // Separa as fusões do Joey para o extra deck e o resto para o deck principal do Bot
+          const fusoesBot = cartasJoey.filter(c => c.fusao === true);
+          const cartasPrincipalBot = cartasJoey.filter(c => !c.fusao);
+          
+          const deckBotEmbaralhado = embaralhar(cartasPrincipalBot);
+          const maoBot = deckBotEmbaralhado.slice(0, 5);
+          const deckBotRestante = deckBotEmbaralhado.slice(5);
+
+          await updateDoc(salaRef1, {
+            [`players.${botUid}`]: {
+              nome: "🤖 Joey Wheeler (IA)",
+              lp: 8000,
+              deck: deckBotRestante,
+              mao: maoBot,
+              fusoes: fusoesBot,
+              isBot: true
+            },
+            [`field.${botUid}`]: {
+              monstro: [null, null, null, null, null],
+              magia: [null, null, null, null, null],
+              gy: []
+            },
+            [`estado.invocacaoNormalUsada.${botUid}`]: false,
+            status: "em_duelo"
+          });
+        }
+      }
+    }, 20000); // 👈 20 segundos de espera
+
+    const unsub = onSnapshot(salaRef1, snap => {
+      const salaDados = snap.data();
+      const quantidadePlayers = Object.keys(salaDados?.players || {}).length;
+
+      if (salaDados?.status === "em_duelo" && quantidadePlayers === 2) {
+        clearTimeout(timerBot);
+        console.log("⚔️ Oponente entrou! Abrindo a arena para o Jogador 1.");
+
+        abrirArena(); // 🚀 Executa a abertura inteligente
+        unsub();
+      }
+    });
+
+  } finally {
+    // Liberar a trava após 3 segundos por segurança
+    setTimeout(() => {
+      window.executandoRandom = false;
+    }, 3000);
+  }
+};
+  
+// ===== FUNÇÃO ÚNICA PARA SALVAR DECK NO FIRESTORE =====
+async function salvarDeckNoFirestore() {
+    if (!currentUid) return;
+    const ref = doc(db, "usuarios", currentUid);
+
+    try {
+        const manterAtqDef = (carta) => {
+            // Se a carta tem ATQ ou DEF definido, nós MANTEMOS, independente do tipo
+            const novaCarta = { ...carta };
+            if (carta.atq === undefined) delete novaCarta.atq;
+            if (carta.def === undefined) delete novaCarta.def;
+            return novaCarta;
+        };
+
+        await updateDoc(ref, {
+            meuDeck: meuDeckArray.map(manterAtqDef),
+            deckFusoes: deckFusoesArray.map(manterAtqDef),
+            extraDeck: extraDeckArray.map(manterAtqDef)
+        });
+
+        console.log("💾 Deck salvo! ATQ/DEF preservados em todas as cartas que possuem esses status.");
+    } catch (error) {
+        console.error("Erro ao salvar deck:", error);
+    }
+}
+
+// ================== CARREGAR DECK DO FIRESTORE ==================
+async function carregarDeckDoUsuario() {
+    if (!currentUid) return;
+    const ref = doc(db, "usuarios", currentUid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const dados = snap.data();
+
+    meuDeckArray = dados.meuDeck || [];
+    deckFusoesArray = dados.deckFusoes || [];
+    extraDeckArray = dados.extraDeck || [];
+
+    const garantirAtqDef = (carta) => {
+        if ('atq' in carta && carta.atq === undefined) carta.atq = 0;
+        if ('deq' in carta && carta.def === undefined) carta.def = 0;
+        return carta;
+    };
+
+    meuDeckArray = meuDeckArray.map(garantirAtqDef);
+    deckFusoesArray = deckFusoesArray.map(garantirAtqDef);
+    extraDeckArray = extraDeckArray.map(garantirAtqDef);
+
+    renderizarGrids();
+    console.log("✅ Deck carregado com ATQ/DEF do Firebase!");
+}
+
+// =========================================================================
+// COMANDO ADMIN: INICIALIZAR CONTADOR DE DERROTAS EM TODOS OS USUÁRIOS
+// =========================================================================
+async function inicializarContadorDerrotasGlobal() {
+    console.log("⚙️ Iniciando verificação global de contadores no Firebase...");
+    try {
+        // Puxa absolutamente todos os usuários registrados no banco
+        const usuariosCollection = collection(db, "usuarios");
+        const snapshot = await getDocs(usuariosCollection);
+
+        let contasAtualizadas = 0;
+
+        // Roda um loop em cada conta de usuário encontrada
+        for (const usuarioDoc of snapshot.docs) {
+            const dados = usuarioDoc.data();
+            
+            // Se o campo 'derrotas' não existir nesta conta, cria ele valendo 0
+            if (dados.derrotas === undefined) {
+                const userRef = doc(db, "usuarios", usuarioDoc.id);
+                await updateDoc(userRef, {
+                    derrotas: 0
+                });
+                contasAtualizadas++;
+            }
+        }
+
+        if (contasAtualizadas > 0) {
+            console.log(`✅ Sucesso! O contador de derrotas foi injetado em ${contasAtualizadas} contas de usuários.`);
+        } else {
+            console.log("📊 Todas as contas do banco já possuem o contador de derrotas estruturado.");
+        }
+
+    } catch (error) {
+        console.error("Erro crítico ao rodar o comando Admin no Firebase:", error);
+    }
+}
+
+// Executa a função automaticamente assim que a aplicação carregar
+inicializarContadorDerrotasGlobal();
+
+// ===== FUNÇÃO PARA CARREGAR O RANK GERAL DO JOGO (TOP 7) ===== //
+async function carregarRankingGeral() {
+    const listaHtml = document.getElementById("ranking-geral-lista");
+    if (!listaHtml) return;
+
+    try {
+        // Busca a coleção de usuários ordenada por vitórias de forma decrescente (limite de 7)
+        const usuariosRef = collection(db, "usuarios");
+        const q = query(usuariosRef, orderBy("vitorias", "desc"), limit(7));
+        const querySnapshot = await getDocs(q);
+
+        // Limpa o container
+        listaHtml.innerHTML = "";
+
+        let posicao = 1;
+
+        querySnapshot.forEach((docSnap) => {
+            const dados = docSnap.data();
+            
+            // Tratamento seguro do nome do duelista
+            const nome = dados.nomeDuelista || dados.nome || "Duelista";
+            
+            // CORREÇÃO DEFINITIVA: Puxa o campo 'fotoPerfil' que você usa com sucesso na arena!
+            const foto = dados.fotoPerfil || dados.perfilFoto || dados.fotoUrl || dados.avatarUrl || "versodacartayugioh.jpg"; 
+            
+            const nivel = dados.nivel || dados.level || 1;
+            const vitorias = dados.vitorias || 0;
+            const derrotas = dados.derrotas || 0;
+
+            // Define classes especiais para destacar o top 1, 2 e 3
+            let classeDestaque = "";
+            if (posicao === 1) classeDestaque = "top-1";
+            else if (posicao === 2) classeDestaque = "top-2";
+            else if (posicao === 3) classeDestaque = "top-3";
+
+            // Monta o item do jogador
+            const itemJogador = document.createElement("div");
+            itemJogador.className = `ranking-item ${classeDestaque}`;
+            
+            itemJogador.innerHTML = `
+                <div class="ranking-posicao">#${posicao}</div>
+                <img class="ranking-foto" src="${foto}" onerror="this.src='versodacartayugioh.jpg';">
+                <div class="ranking-info">
+                    <span class="ranking-nome">${nome}</span>
+                    <span class="ranking-nivel">Nível ${nivel}</span>
+                </div>
+                <div class="ranking-stats">
+                    <span>V: ${vitorias}</span><br>
+                    <span class="derrotas-cor">D: ${derrotas}</span>
+                </div>
+            `;
+
+            listaHtml.appendChild(itemJogador);
+            posicao++;
+        });
+
+        if (posicao === 1) {
+            listaHtml.innerHTML = `<div style="text-align:center; font-size:0.8rem; color:#aaa;">Nenhum duelista encontrado.</div>`;
+        }
+
+    } catch (error) {
+        console.error("Erro ao carregar o ranking geral:", error);
+        listaHtml.innerHTML = `<div style="text-align:center; font-size:0.8rem; color:#ff4444;">Erro ao carregar o rank.</div>`;
+    }
+}
+
+// Executa a busca assim que o script carregar ou após o login do usuário
+if (typeof db !== "undefined") {
+    // Carrega uma vez ao abrir a página
+    carregarRankingGeral();
+    
+    // Atualiza o ranking automaticamente a cada 30 segundos para manter síncrono
+    setInterval(carregarRankingGeral, 30000);
+}
+
+// =============================================//=====================================//=======
+
+// ===== LINPEZA FIREBASE =====
+async function limparFirebaseAutomatico() {
+    if (!currentUid) return;
+
+    const ref = doc(db, "usuarios", currentUid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    const dados = snap.data();
+
+    // Função que só remove se o valor for nulo, mas mantém se for 0 ou maior
+    function preservarStatus(arr) {
+        return arr.map(carta => {
+            const novaCarta = { ...carta };
+            // Se não for um número, aí sim removemos para não sujar o banco
+            if (typeof carta.atq !== 'number') delete novaCarta.atq;
+            if (typeof carta.def !== 'number') delete novaCarta.def;
+            if (typeof carta.nv !== 'number') delete novaCarta.nv;
+            return novaCarta;
+        });
+    }
+
+    await updateDoc(ref, {
+        meuDeck: preservarStatus(dados.meuDeck || []),
+        deckFusoes: preservarStatus(dados.deckFusoes || []),
+        extraDeck: preservarStatus(dados.extraDeck || [])
+    });
+
+    console.log("✅ Limpeza concluída: Status numéricos preservados!");
+}
+
+// ================= ATUALIZA DECK DO JOEY NO FIREBASE =================
+async function atualizarDeckJoeyNoFirebase() {
+    if (!currentUid) {
+        console.warn("Usuário não logado. Não é possível atualizar o deck.");
+        return;
+    }
+
+    const ref = doc(db, "usuarios", currentUid);
+
+    // Mapeia as cartas do Joey, mantendo ATQ/DEF apenas para monstros
+    const joeyDeckAtualizado = cartasJoey.map(carta => {
+        // Considera que monstros são as cartas que possuem 'atq' e 'def'
+        if (carta.atq !== undefined && carta.def !== undefined) {
+            return {
+                ...carta,
+                nv: Number(carta.nv ?? 0),
+                atq: Number(carta.atq),
+                def: Number(carta.def)
+            }; // Mantém NV, ATQ e DEF dos monstros
+        } else {
+            // Magias e Armadilhas não possuem NV / ATQ / DEF
+            const novaCarta = { ...carta };
+            delete novaCarta.nv;
+            delete novaCarta.atq;
+            delete novaCarta.def;
+            return novaCarta;
+        }
+    });
+
+    try {
+        await updateDoc(ref, { meuDeck: joeyDeckAtualizado });
+        console.log("🔥 Deck do Joey atualizado no Firebase com sucesso!");
+        alert("Deck do Joey atualizado no Firebase ✅");
+    } catch (error) {
+        console.error("Erro ao atualizar Deck do Joey:", error);
+        alert("❌ Erro ao atualizar Deck do Joey. Veja o console.");
+    }
+}
+
+
+       //===== CARTAS ALEXIS =====
+        const cartasAlexis = [
+  { nome: "Dragão da Tempestade Torencial", img: "Dragão da Tempestade Torencial A-47.1.png", tipo: "Monstro", fusao: true, atq: 3000, def: 2000, efeito: "Materiais de Fusão: 1 \"Dragão do Vento\" + 1 ou + monstros de atributo VENTO de NV-5 acima.\nDeve ser Invocado por Fusão usando \"Fusão\" e os materiais necessários da mão ou do campo.\n● Quando esta carta for Invocada no campo, todos os monstros do oponente perdem 1000 pontos de ATQ e DEF até o final do seu turno.\n● Uma vez por turno, quando esta carta declarar um ataque, cartas de Armadilha de destruição não pode afetá-la até o final da Etapa de Dano do seu turno." },
+
+  { nome: "Imperador Celestial das Tempestades", img: "Imperador Celestial das Tempestades A-46.1.png", tipo: "Guerreiro / Efeito", atq: 3000, def: 2000, efeito: "Requer 2 monstros de atributo VENTO da sua mão ou campo, cuja soma dos níveis seja NV-30 ou maior, como Tributos para ser Invocado por Invocação-Normal.\n● Quando esta carta for Invocada, todos os monstros que seu oponente controla perdem 500 pontos de ATQ e DEF até o final do turno.\n● Uma vez por turno, você pode escolher 1 monstro de atributo VENTO que controla; ele ganha 500 pontos de ATQ até o final deste turno." },
+  { nome: "Dragão do Vento", img: "Dragao do Vento A-33.1.png", tipo: "Dragão / Efeito", atq: 2000, def: 1000, efeito: "Quando esta carta for Invocada, você pode trazer 1 monstro de atributo VENTO de NV-10 ou menor do seu Cemitério para o campo em Posição de Defesa." }, 
+  { nome: "Dragão do Vento", img: "Dragao do Vento A-33.2.png", tipo: "Dragão / Efeito", atq: 2000, def: 1000, efeito: "Quando esta carta for Invocada, você pode trazer 1 monstro de atributo VENTO de NV-10 ou menor do seu Cemitério para o campo em Posição de Defesa." },
+   
+  { nome: "Pequena Dama dos Ventos", img: "Pequena Dama dos Ventos A-44.1.png", tipo: "Besta / Efeito", atq: 500, def: 1500, efeito: "Quando esta carta for Invocada ou revelada, você pode trazer 1 monstro de atributo VENTO de NV-15 ou menor do seu Cemitério para o campo em Posição de Ataque." },
+  { nome: "Pequena Dama dos Ventos", img: "Pequena Dama dos Ventos A-44.2.png", tipo: "Besta / Efeito", atq: 500, def: 1500, efeito: "Quando esta carta for Invocada ou revelada, você pode trazer 1 monstro de atributo VENTO de NV-15 ou menor do seu Cemitério para o campo em Posição de Ataque." },
+  { nome: "Pequena Dama dos Ventos", img: "Pequena Dama dos Ventos A-44.3.png", tipo: "Besta / Efeito", atq: 500, def: 1500, efeito: "Quando esta carta for Invocada ou revelada, você pode trazer 1 monstro de atributo VENTO de NV-15 ou menor do seu Cemitério para o campo em Posição de Ataque." },
+  { nome: "Arqueiro do Vento", img: "Arqueiro do Vento A-48.1.png", tipo: "Besta / Normal", atq: 1000, def: 1000, efeito: "Um habilidoso arqueiro dos céus que domina as correntes de ar. Suas flechas, guiadas pelo poder dos ventos, atravessam grandes distâncias com precisão extraordinária, atingindo seus inimigos antes mesmo que percebam sua presença." },
+
+  { nome: "O Gavião Humanoide", img: "O Gaviao Humanoide A-32.1.png", tipo: "Besta / Efeito", atq: 1500, def: 1000, efeito: "Quando este card está no campo virado para cima, os monstros de tipo Terra, Fogo e Água perdem 500 pontos de ATQ e DEF." },
+  { nome: "O Gavião Humanoide", img: "O Gaviao Humanoide A-32.2.png", tipo: "Besta / Efeito", atq: 1500, def: 1000, efeito: "Quando este card está no campo virado para cima, os monstros de tipo Terra, Fogo e Água perdem 500 pontos de ATQ e DEF." },
+  { nome: "O Gavião Humanoide", img: "O Gaviao Humanoide A-32.3.png", tipo: "Besta / Efeito", atq: 1500, def: 1000, efeito: "Quando este card está no campo virado para cima, os monstros de tipo Terra, Fogo e Água perdem 500 pontos de ATQ e DEF." },
+
+  { nome: "Falcão Mensageiro dos Céus", img: "Falcão Mensageiro dos Céus A-42.1.png", tipo: "Besta / Efeito", atq: 1000, def: 1000, efeito: "Quando esta carta for Invocada, você pode adicionar 1 monstro de atributo VENTO de NV-15 ou menor do seu Deck à sua mão, exceto \"Falcão Mensageiro dos Céus\"." },
+  { nome: "Falcão Mensageiro dos Céus", img: "Falcão Mensageiro dos Céus A-42.2.png", tipo: "Besta / Efeito", atq: 1000, def: 1000, efeito: "Quando esta carta for Invocada, você pode adicionar 1 monstro de atributo VENTO de NV-15 ou menor do seu Deck à sua mão, exceto \"Falcão Mensageiro dos Céus\"." },
+  { nome: "Falcão Mensageiro dos Céus", img: "Falcão Mensageiro dos Céus A-42.3.png", tipo: "Besta / Efeito", atq: 1000, def: 1000, efeito: "Quando esta carta for Invocada, você pode adicionar 1 monstro de atributo VENTO de NV-15 ou menor do seu Deck à sua mão, exceto \"Falcão Mensageiro dos Céus\"." },
+  
+  { nome: "Guardião das Correntes de Ar", img: "Guardião das Correntes de Ar A-45.1.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1000, efeito: "Uma vez por turno, você pode escolher 1 monstro de atributo VENTO que controla; ele ganha 500 pontos de ATQ e DEF até o final deste turno." },
+  { nome: "Guardião das Correntes de Ar", img: "Guardião das Correntes de Ar A-45.2.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1000, efeito: "Uma vez por turno, você pode escolher 1 monstro de atributo VENTO que controla; ele ganha 500 pontos de ATQ e DEF até o final deste turno." },
+   
+  { nome: "Guerreiro Alado dos Céus", img: "Guerreiro Alado dos Ceus A-34.1.png", tipo: "Besta / Efeito", atq: 1000, def: 1500, efeito: "Ganha 500 pontos de ATQ e DEF para cada monstro de tipo Vento no seu campo." },
+  { nome: "Guerreiro Alado dos Céus", img: "Guerreiro Alado dos Ceus A-34.2.png", tipo: "Besta / Efeito", atq: 1000, def: 1500, efeito: "Ganha 500 pontos de ATQ e DEF para cada monstro de tipo Vento no seu campo." },
+  { nome: "Guerreiro Alado dos Céus", img: "Guerreiro Alado dos Ceus A-34.3.png", tipo: "Besta / Efeito", atq: 1000, def: 1500, efeito: "Ganha 500 pontos de ATQ e DEF para cada monstro de tipo Vento no seu campo." },
+  
+  { nome: "Ressurreição", img: "ressurreiçao B-4.1.png", tipo: "Carta de Magia", efeito: "Traga do seu Cemitério um monstro para o campo." },
+  { nome: "Rajada Repulsora", img: "Rajada Repulsora Armadilha Mágica B-26.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro do oponente declarar um ataque, escolha o monstro atacante; negue o ataque e devolva esse monstro para a mão do seu oponente." },
+  { nome: "Último Sopro da Tempestade", img: "Último Sopro da Tempestade B-27.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro de atributo VENTO que você controla for destruído e enviado para o Cemitério, traga 1 monstro de atributo VENTO de NV-15 ou menor do seu Cemitério para o campo em Posição de Defesa." },
+  { nome: "Barreira dos Ventos", img: "Barreira dos Ventos Defesa Elemental B-25.2.png", tipo: "Card de Armadilha", efeito: "Quando um monstro de atributo VENTO que você controla seria destruído por batalha ou efeito de carta, negue essa destruição." },
+
+  { nome: "Chamado dos Ventos", img: "Chamado dos Ventos Ruínas do Vórtice B-21.1.png", tipo: "Carta de Magia", efeito: "Adicione 1 monstro de atributo VENTO de NV-20 ou menor do seu Deck à sua mão." },
+  { nome: "Chamado dos Ventos", img: "Chamado dos Ventos Ruínas do Vórtice B-21.2.png", tipo: "Carta de Magia", efeito: "Adicione 1 monstro de atributo VENTO de NV-20 ou menor do seu Deck à sua mão." },
+  
+  { nome: "Fusão", img: "Fusão B-24.1.png", tipo: "Carta de Magia", efeito: "Funda monstros para se tornar uma só força." },
+  { nome: "Fusão", img: "Fusão B-24.2.png", tipo: "Carta de Magia", efeito: "Funda monstros para se tornar uma só força." },
+  
+  { nome: "Correntes Ascendentes", img: "Correntes Ascendentes Espírito do Vento B-22.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro de atributo VENTO de NV-15 ou menor no seu Cemitério e traga-o para o campo em Posição de Ataque." },
+  { nome: "Correntes Ascendentes", img: "Correntes Ascendentes Espírito do Vento B-22.2.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro de atributo VENTO de NV-15 ou menor no seu Cemitério e traga-o para o campo em Posição de Ataque." },
+
+  { nome: "Fúria dos Céus", img: "Fúria dos Céus Tempestade Mágica B-23.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro de atributo VENTO que controla; ele ganha 1000 pontos de ATQ." },
+  { nome: "Tempestade Destruidora", img: "tempestade destruidora B-9.1.png", tipo: "Carta de Magia", efeito: "Destrói todas as cartas de Magia e Armadilha no campo." },
+  
+];
+
+        // ===== CARTAS JADEN =====
+         const cartasJaden = [
+   { nome: "Dragão Guardião do Trono Sombrio", img: "Dragão Guardião do Trono Sombrio A-60.1.png", tipo: "Monstro", fusao: true, atq: 2000, def: 2500, efeito: "Materiais de Fusão: 2 monstro de TREVAS de NV-5 ou maior de maneira que some o valor do NV- do Dragão Guardião do Trono Sombrio.\nDeve ser Invocado por Fusão usando a carta \"Fusão\" e os materiais necessários da mão ou do campo. ● Enquanto esse dragao estive no campo \"O Imperador Supremo da Noite\" nao pode ser destruido em batalha." },
+   { nome: "Imperador Supremo da Noite", img: "Imperador Supremo da Noite A-59.1.png", tipo: "Trevas / Efeito", atq: 3000, def: 2000, efeito: "Efeito:\n◆ Invocação especial : tribute 1 monstro da sua mao e +1 monstro do seu campo de NV-15 de TREVAS cuja soma dos níveis seja NV-30 ou maior.\n◆ Uma vez por turno, você pode enviar 1 monstro de TREVAS que controla para o Cemitério; apos isso destrua todos os montros no campo do seu oponete." },
+   
+   { nome: "Vagante da Noite", img: "Vagante da Noite A-58.1.png", tipo: "Trevas / Efeito", atq: 1500, def: 1000, efeito: "Quando esta carta for Invocada compre 1 carta do seu deck. Você só pode usar este efeito uma vez." },
+   { nome: "Vagante da Noite", img: "Vagante da Noite A-58.2.png", tipo: "Trevas / Efeito", atq: 1500, def: 1000, efeito: "Quando esta carta for Invocada compre 1 carta do seu deck. Você só pode usar este efeito uma vez." },
+   
+   { nome: "Guardião Sombrio", img: "Guardião Sombrio A-57.1.png", tipo: "Trevas / Efeito", atq: 1000, def: 1500, efeito: "Se esta carta for destruida no seu campo e mandada ao Cemitério, você pode trazer 1 monstro de TREVAS de NV-20 ou menor do seu Cemitério para o campo em Posição de Defesa, exceto esta carta, esse efeito so pode ser usado 1 vez." },
+   { nome: "Guardião Sombrio", img: "Guardião Sombrio A-57.2.png", tipo: "Trevas / Efeito", atq: 1000, def: 1500, efeito: "Se esta carta for destruida no seu campo e mandada ao Cemitério, você pode trazer 1 monstro de TREVAS de NV-20 ou menor do seu Cemitério para o campo em Posição de Defesa, exceto esta carta, esse efeito so pode ser usado 1 vez." },
+   
+   { nome: "Dragão das Trevas", img: "Dragão das Trevas A-56.1.png", tipo: "Dragão / Normal", atq: 2000, def: 1500, efeito: "Um poderoso dragão nascido nas profundezas da escuridão. Suas asas encobrem a luz e seu rugido anuncia a chegada da noite eterna." },
+   { nome: "Dragão das Trevas", img: "Dragão das Trevas A-56.2.png", tipo: "Dragão / Normal", atq: 2000, def: 1500, efeito: "Um poderoso dragão nascido nas profundezas da escuridão. Suas asas encobrem a luz e seu rugido anuncia a chegada da noite eterna." },
+   
+   { nome: "Cavaleiro da Noite", img: "Cavaleiro da Noite A-55.1.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1500, efeito: "Uma vez por turno, você pode escolher um monstro do campo do seu oponente se isso acontecer. Ele não pode declarar ataques até o final do seu turno." },
+   { nome: "Cavaleiro da Noite", img: "Cavaleiro da Noite A-55.2.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1500, efeito: "Uma vez por turno, você pode escolher um monstro do campo do seu oponente se isso acontecer. Ele não pode declarar ataques até o final do seu turno." },
+   
+   { nome: "Guerreiro das Sombras", img: "Guerreiro das Sombras em Noite A-54.1.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1000, efeito: "Se esta carta for enviada do campo ao Cemitério por um efeito de carta de TREVAS que você controla, você pode adicionar 1 monstro de TREVAS de NV-15 ou menor do seu Cemitério à sua mão, exceto esta carta. Uma vez por turno." },
+   { nome: "Guerreiro das Sombras", img: "Guerreiro das Sombras em Noite A-54.2.png", tipo: "Guerreiro / Efeito", atq: 1500, def: 1000, efeito: "Se esta carta for enviada do campo ao Cemitério por um efeito de carta de TREVAS que você controla, você pode adicionar 1 monstro de TREVAS de NV-15 ou menor do seu Cemitério à sua mão, exceto esta carta. Uma vez por turno." },
+   
+   { nome: "Feiticeira da Lua Negra", img: "Feiticeira da Lua Negra A-53.1.png", tipo: "Mago / Efeito", atq: 1000, def: 1500, efeito: "Uma vez por turno, você pode enviar 1 monstro de TREVAS do seu campo para o Cemitério, para trazer um monstro de Trevas de atq 1500 abaixo do seu Deck para o campo." },
+   { nome: "Feiticeira da Lua Negra", img: "Feiticeira da Lua Negra A-53.2.png", tipo: "Mago / Efeito", atq: 1000, def: 1500, efeito: "Uma vez por turno, você pode enviar 1 monstro de TREVAS do seu campo para o Cemitério, para trazer um monstro de Trevas de atq 1500 abaixo do seu Deck para o campo." },
+   
+   { nome: "Corvo Mensageiro da Noite", img: "Corvo Mensageiro da Noite A-52.1.png", tipo: "Besta / Efeito", atq: 1000, def: 1000, efeito: "Quando esta carta for Invocada, você pode adicionar 1 Magia \"Conbinado\" ou \"Trono da Noite\" do seu Deck à sua mão. Você só pode usar este efeito uma vez por turno." },
+   { nome: "Corvo Mensageiro da Noite", img: "Corvo Mensageiro da Noite A-52.2.png", tipo: "Besta / Efeito", atq: 1000, def: 1000, efeito: "Quando esta carta for Invocada, você pode adicionar 1 Magia \"Conbinado\" ou \"Trono da Noite\" do seu Deck à sua mão. Você só pode usar este efeito uma vez por turno." },
+   
+   { nome: "Pequeno Servo da Noite", img: "Pequeno Servo da Noite A-51.1.png", tipo: "Besta / Efeito", atq: 500, def: 1000, efeito: "Quando esta carta for Invocada, você pode enviar 1 monstro de TREVAS de NV-15 ou menor do seu Deck para o Cemitério. Você só pode usar este efeito uma vez por turno." },
+   { nome: "Pequeno Servo da Noite", img: "Pequeno Servo da Noite A-51.2.png", tipo: "Besta / Efeito", atq: 500, def: 1000, efeito: "Quando esta carta for Invocada, você pode enviar 1 monstro de TREVAS de NV-15 ou menor do seu Deck para o Cemitério. Você só pode usar este efeito uma vez por turno." },
+   { nome: "Pequeno Servo da Noite", img: "Pequeno Servo da Noite A-51.3.png", tipo: "Besta / Efeito", atq: 500, def: 1000, efeito: "Quando esta carta for Invocada, você pode enviar 1 monstro de TREVAS de NV-15 ou menor do seu Deck para o Cemitério. Você só pode usar este efeito uma vez por turno." },
+   
+   { nome: "Prisão da Alma", img: "Prisão da Alma B-33.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro do oponente declarar um ataque e você tiver um monstro de TREVAS no seu campo, negue esse ataque e se isso acontece, encerre a Fase de Batalha dele." },
+   { nome: "Prisão da Alma", img: "Prisão da Alma B-33.2.png", tipo: "Card de Armadilha", efeito: "Quando um monstro do oponente declarar um ataque e você tiver um monstro de TREVAS no seu campo, negue esse ataque e se isso acontece, encerre a Fase de Batalha dele." },
+   
+   { nome: "Acordo da Noite", img: "Acordo da Noite B-32.1.png", tipo: "Card de Armadilha", efeito: "Quando seu oponente ativar o efeito de um monstro, você pode enviar 1 monstro de TREVAS que controla para o Cemitério; negue esse efeito." },
+   { nome: "Acordo da Noite", img: "Acordo da Noite B-32.2.png", tipo: "Card de Armadilha", efeito: "Quando seu oponente ativar o efeito de um monstro, você pode enviar 1 monstro de TREVAS que controla para o Cemitério; negue esse efeito." },
+
+   { nome: "Decreto do Imperador", img: "Decreto do Imperador B-31.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 carta que seu oponente controla e devolva-a para a mão do dono." },
+   { nome: "Trono do Imperador Supremo da Noite", img: "Trono Supremo da Noite B-30.1.png", tipo: "Carta de Magia Contínua", efeito: "Em quanto essa carta estive no campo \"O Imperador Supremo da Noite\" não precisar tributa 1 monstro de TREVAS do seu campo para ativa seu efeito." },
+
+   { nome: "Correntes Negras", img: "Correntes Negras B-29.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro que seu oponente controla, esse monstro não pode atacar, nem mudar de posição de batalha nem ser usado como Tributo." },
+   { nome: "Correntes Negras", img: "Correntes Negras B-29.2.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro que seu oponente controla, esse monstro não pode atacar, nem mudar de posição de batalha nem ser usado como Tributo." },
+
+   { nome: "Sacrifício da Noite", img: "Sacrifício da Noite B-28.1.png", tipo: "Carta de Magia", efeito: "Envie 1 monstro de TREVAS que controla para o Cemitério; compre 2 cartas." },
+   { nome: "Fusão", img: "Fusão B-24.1.png", tipo: "Carta de Magia", efeito: "Funda monstros para se tornar uma só força." },
+
+   { nome: "Julgamento do Imperador", img: "Julgamento do Imperador B-35.1.png", tipo: "Card de Armadilha", efeito: "Se você controlar \"Imperador Supremo da Noite\", e seu oponente ativa uma carta mágica ou armadilha, destrua todas as cartas mágicas e armadilhas do seu oponente !" },
+   { nome: "Tributo do Sacrifício", img: "Tributo do Sacrifício B-34.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro de TREVAS que você controla for enviado do campo ao Cemitério, destrua uma carta mágica ou armadilha no campo do seu oponente." },
+   
+];
+
+        // ===== CARTAS JOEY =====
+         const cartasJoey = [
+  { nome: "Dragão do Sol de 5 Cabeças", img: "Dragão do Sol de 5 Cabeças A-50.1.png", tipo: "Monstro", fusao: true, atq: 5000, def: 3000, efeito: "Matérias de Fusão: 3 ou mais monstros de atributo FOGO de NV-15 ou acima que some o NV-50. Deve ser Invocado por Fusão usando \"Fusão\" e os materiais necessários da mão ou do campo. poderoso dragão que foi feito do próprio sol pelo Celestial Alfa Omegar para proteger as cartas Início, Meio e Fim." },
+  { nome: "Dragão de Fogo de Olhos Azuis", img: "dragao de fogo de olhos azuis A-18.1.png", tipo: "Dragão / Efeito", nv: 35, atq: 3500, def: 2000, efeito: "Uma vez por turno, você pode enviar 1 monstro do tipo Dragão da sua mão ou do seu campo para o Cemitério; após isso, este monstro pode atacar 2 vezes durante este turno." },
+  
+  { nome: "Dragão Pequeno Saltitante", img: "dragao pequeno saltitante A-22.1.png", tipo: "Dragão Normal", nv: 10, atq: 1000, def: 1000, efeito: "Um dragão pequeno mais com uma habilidade de pular a alturas inornes pegando os seus inimigos de surpresa !" },
+  { nome: "Dragão Pequeno Saltitante", img: "dragao pequeno saltitante A-22.2.png", tipo: "Dragão Normal", nv: 10, atq: 1000, def: 1000, efeito: "Um dragão pequeno mais com uma habilidade de pular a alturas inornes pegando os seus inimigos de surpresa !" },
+  
+  { nome: "Exército de Dragão", img: "exercito de dragao A-20.1.png", tipo: "Besta Normal", nv: 15, atq: 1500, def: 500, efeito: "Um esquadrão de guerreiros dragões de pouca força, mas muito unidos !" },
+  { nome: "Exército de Dragão", img: "exercito de dragao A-20.2.png", tipo: "Besta Normal", nv: 15, atq: 1500, def: 500, efeito: "Um esquadrão de guerreiros dragões de pouca força, mas muito unidos !" },
+  
+  { nome: "Fênix das Chamas", img: "fenix das chamas A-28.1.png", tipo: "Besta / Efeito", nv: 25, atq: 2500, def: 1000, efeito: "Quando este monstro for destruído e enviado para o Cemitério, após 2 turnos ele volta para o campo. Este efeito só pode ser ativado uma vez." },
+  { nome: "Cavaleiros do Rei", img: "cavaleiros do rei A-24.1.png", tipo: "Besta / Efeito", nv: 10, atq: 1000, def: 1000, efeito: "Ele pode atacar diretamente os pontos de vida do seu oponente." },
+  { nome: "A Pequena Dama de Fogo", img: "a pequena dama de fogo A-25.1.png", tipo: "Besta / Efeito", nv: 5, atq: 500, def: 1500, efeito: "Quando este monstro for invocado da mão para o campo ou revelada no campo, você pode trazer um monstro de tipo FOGO de NV-15 ou menor do seu Cemitério em modo de ATQ." },
+  { nome: "Filhote do Dragão de Fogo de Olhos Azuis", img: "filhote do dragao de fogo de olhos azuis A-42.1.png", tipo: "Dragão / Efeito", nv: 10, atq: 1000, def: 500, efeito: "Quando esta carta for enviada da sua mão ou campo para o Cemitério, você pode adicionar 1 monstro do tipo Dragão de NV-20 ou menor do seu Deck à sua mão. Este efeito só pode ser ativado uma vez por turno." },
+  { nome: "Sacerdotisa das Chamas", img: "sacerdotisa das chamas A-43.1.png", tipo: "Guerreiro / Efeito", nv: 10, atq: 1000, def: 1500, efeito: "Quando esta carta for Invocada, você pode escolher 1 monstro de atributo FOGO de NV-15 ou menor no seu Cemitério e adicioná-lo à sua mão." },
+  { nome: "Dragão Renascido das Chamas", img: "dragao renascido das chamas A-44.1.png", tipo: "Dragão / Efeito", nv: 20, atq: 2000, def: 1000, efeito: "Uma vez por turno, se outro monstro de atributo FOGO que você controla for destruído e enviado para o Cemitério, você pode trazer esta carta do seu Cemitério para o campo em Posição de Ataque." },
+  
+  { nome: "Guerreiro do Dragão de Fogo", img: "guerreiro do dragao de fogo A-17.1.png", tipo: "Guerreiro / Efeito", nv: 10, atq: 1000, def: 1000, efeito: "Você pode tributar este monstro mais 2 monstros da sua mão ou campo cujo o nível somado seja NV-35 ou maior de tipo Dragão para o seu Cemitério e trazer do seu Deck ou da sua mão o Dragão de Fogo de Olhos Azuis." },
+  { nome: "Guerreiro do Dragão de Fogo", img: "guerreiro do dragao de fogo A-17.2.png", tipo: "Guerreiro / Efeito", nv: 10, atq: 1000, def: 1000, efeito: "Você pode tributar este monstro mais 2 monstros da sua mão ou campo cujo o nível somado seja NV-35 ou maior de tipo Dragão para o seu Cemitério e trazer do seu Deck ou da sua mão o Dragão de Fogo de Olhos Azuis." },
+  
+  { nome: "Lagarto de Espada", img: "largato de espada A-16.1.png", tipo: "Lagarto / Efeito", nv: 15, atq: 1500, def: 1000, efeito: "Quando este monstro for invocado em Posição de Ataque, você pode destruir 1 monstro em Posição de Defesa no campo do seu oponente." },
+  { nome: "Lagarto de Espada", img: "largato de espada A-16.2.png", tipo: "Lagarto / Efeito", nv: 15, atq: 1500, def: 1000, efeito: "Quando este monstro for invocado em Posição de Ataque, você pode destruir 1 monstro em Posição de Defesa no campo do seu oponente." },
+ 
+  { nome: "Corcel de Fogo das Pequenas Damas", img: "o corcel de fogo das pequenas damas A-26.1.png", tipo: "Besta / Efeito", nv: 15, atq: 1000, def: 500, efeito: "Ganha 500 pontos de ATQ e DEF por cada Pequena Dama de Fogo, Pequena Dama de Terra e Pequena Dama de Vento no seu campo." },
+
+  { nome: "Os Cavaleiros do Rei Dragão", img: "os cavaleiros do rei dragao A-21.1.png", tipo: "Dragão Normal", nv: 15, atq: 1500, def: 1000, efeito: "Os cavaleiros dragões, os guerreiros mais fiéis do rei dragão !" },
+  { nome: "Os Cavaleiros do Rei Dragão", img: "os cavaleiros do rei dragao A-21.2.png", tipo: "Dragão Normal", nv: 15, atq: 1500, def: 1000, efeito: "Os cavaleiros dragões, os guerreiros mais fiéis do rei dragão !" },
+  
+  { nome: "Fusão", img: "Fusão B-24.1.png", tipo: "Carta de Magia", efeito: "Funda monstros para se tornar uma só força." },
+  { nome: "Fusão", img: "Fusão B-24.2.png", tipo: "Carta de Magia", efeito: "Funda monstros para se tornar uma só força." },
+
+  { nome: "Invocação da Fênix", img: "invocaçao da fenix B-11.1.png", tipo: "Carta de Magia", efeito: "Você pode descartar 1 monstro da sua mão de NV-15 ou menor, ou tributar 1 monstro do seu campo de NV-15 ou menor para o seu Cemitério e trazer do seu Deck ou mão para o campo a Fênix das Chamas." }, 
+  { nome: "Chamas da Ressurreição", img: "chamas da ressurreiçao B-14.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro de atributo FOGO de NV-15 ou menor no seu Cemitério e traga-o para o seu campo em Posição de Ataque." },
+  { nome: "Contra ATQ", img: "comtra atq B-20.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro do oponente declarar um ataque: escolha o monstro atacante; negue o ataque e, se isso acontecer, cause dano ao seu oponente igual ao ATQ dele." },
+  { nome: "Fúria das Chamas", img: "furia das chamas B-16.1.png", tipo: "Carta de Magia", efeito: "Escolha 1 monstro de atributo FOGO que você controla; ele ganha 1000 de ATQ." },
+  { nome: "Ira do Rei Dragão", img: "ira do rei dragao B-19.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro do tipo Dragão que você controla for destruído por uma carta do oponente, escolha 1 carta no campo do seu oponente e destrua-a." },
+  { nome: "Ressurreição dos Mortos", img: "ressurreiçao dos mortos B-12.1.png", tipo: "Card de Armadilha", efeito: "Você pode ativar esta carta no campo no momento do ataque do seu oponente, trazendo um monstro do seu Cemitério para o campo. Esta carta pode ser ativada normalmente sem necessidade de gatilho de ataque do seu oponente." },
+  { nome: "Sacrifício do Dragão", img: "sacrificio do dragao B-15.1.png", tipo: "Carta de Magia", efeito: "Envie 1 monstro do tipo Dragão da sua mão para o Cemitério; compre 2 cartas do seu Deck." },
+  { nome: "Última Chama da Fênix", img: "ultima chama da fenix B-18.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro de atributo FOGO que você controla for destruído e enviado para o Cemitério, escolha 1 monstro de atributo FOGO de NV-15 ou menor no seu Cemitério e traga-o para o campo." },
+  { nome: "Barreira das Chamas", img: "barreira das chamas B-17.1.png", tipo: "Card de Armadilha", efeito: "Quando um monstro de atributo FOGO que você controla seria destruído por batalha ou por efeito de uma carta, você pode ativar esta carta; esse monstro não é destruído." },
+  { nome: "Chamado do Rei Dragão", img: "chamado do rei dragao B-13.1.png", tipo: "Carta de Magia", efeito: "Adicione do seu Deck à sua mão 1 Guerreiro do Dragão de Fogo ou 1 monstro do tipo Dragão de NV-15 ou menor." },
+  
+];
+
+        // ===== CARTAS URIA =====
+         const cartasUria = [
+ 
+
+];
+
+        // ===== CARTAS HAMON =====
+         const cartasHamon = [
+    { nome: "Hamon, o Senhor do Trovão Impactante", img: "Hamon, o Senhor do Trovão Impactante 1.jpg", tipo: "Monstro", atk: 4000, def: 4000, efeito: "Não pode ser Invocado por Invocação-Normal/Baixado. Deve ser Invocado por Invocação-Especial (da sua mão) ao enviar 3 Magias Contínuas com a face para cima que você controla para o Cemitério. Se este card destruir um monstro do oponente em batalha e enviá-lo para o Cemitério: cause 1000 de dano ao seu oponente. Enquanto este card estiver com a face para cima em Posição de Defesa, monstros que seu oponente controla não podem escolher monstros como alvo de ataques, exceto este." },
+
+];
+
+       // ===== DECK DRAGÃO CIBERNETICO FINAL =====
+        const cartasDragaoFinal = [
+   
+
+];
+
+       // ===== DECK ÁGUA =====
+        const cartasAgua = [
+   { nome: "Aglomerado de Dragões de Água", img: "Aglomerado de Dragões de Água 1.jpg", tipo: "Monstro", atk: 2800, def: 2600, efeito: "Não pode ser Invocado por Invocação-Normal/Baixado. Deve ser Invocado por Invocação-Especial com o efeito de uma Magia/Armadilha 'Vínculo'. Se este card for Invocado por Invocação-Especial: você pode ativar este efeito; Monstros de Efeito que seu oponente controla atualmente não podem ativar seus efeitos pelo resto deste turno e, além disso, reduz o ATK deles a 0 até o final deste turno. (Efeito Rápido): você pode Tributar este card; Invoque por Invocação-Especial 2 'Dragão da Água' da sua mão e/ou Deck em Posição de Defesa, ignorando suas condições de Invocação." },
+   
+   
+];
+
+       // ===== DECK SOF =====
+        const cartasSof = [
+    { nome: "Sof, o Dragão Celestial da Luz", img: "Sof, o Dragao Celestial Da Luz A-97.1.png", tipo: "Besta Divina / Efeito", nv: 40, atq: 4000, def: 4000, efeito: "Requer 3 Tributos para ser Invocado por Invocação-Normal (não pode ser Baixado).\n● Todos os efeitos de cartas mágicas e armadilhas e de destruição ou controle não podem afetar essa carta.\n● Durante sua Fase Final, se este card foi Invocado do cemitério ! ao final do seu turno ele é enviado para o seu cemitério.\n● Este card não pode ser destruído em batalha.\n● Uma vez por turno vc pode descarttr uma carta da sua mao, após isso essa carta dobra o ATQ e DEF até o final do seu turno." },
+ 
+];
+
+// ===== DECK BERESHIT =====
+const cartasBereshit = [
+    { nome: "Bereshit, o Dragão Celestial do Céus", img: "Bereshit, o Dragao Celestial do Ceus A-99.1.png", tipo: "Dragão Divino / Efeito", nv: 40, atq: 0 , def: 0 , efeito: "Requer 3 monstros de NV-10 a 15 da sua mão ou campo de maneira que some o nível igual ou maior que o seu nível como Tributos para ser Invocado por Invocação-Normal (não pode ser Baixado especialmente da mão por efeito de cartas).\n● Durante sua Fase Final, se este card foi Invocado do cemitério, ao final do seu turno ele é enviado para o seu cemitério.\n● Todos os efeitos de cartas mágicas e armadilhas e de destruição ou controle não podem afetar esta carta.\n● O ATQ / DEF desta carta se torna igual ao número de cartas no seu Cemitério x 1000.\n● Quando esta carta for Invocada com sucesso, todos os monstros do oponente perdem a metade do seu ATQ e DEF enquanto o Bereshit estiver revelado no campo.\n● Quando você estiver com Bereshit, o Dragão Celestial do Céus, Chatsi, o Intercessor Celestial e Sof, o Dragão Celestial da Luz no campo ou mão,invoque do seu deck de fusões para o campo o Celestial, Alfa e Ômega, o Princípio, Meio e Fim." },
+
+];
+
+
+// ===== DECK CHATSI =====
+const cartasChatsi = [
+    { nome: "Chatsi, o Intercessor Celestial A-98", img: "Chatsi, o Intercessor Celestial A-98.1.png", tipo: "Guerreiro Divino / Efeito", nv: 37, atq: 3700, def: 3700, efeito: "Requer 3 monstros de NV-10 a 15 da sua mão ou campo de maneira que some o nível igual ou maior que o seu nível como Tributos para ser Invocado por Invocação-Normal (não pode ser Baixado especialmente da mão por efeito de cartas).\n● Durante sua Fase Final, se este card foi Invocado do cemitério, ao final do seu turno ele é enviado para o seu cemitério.\n● Todos os efeitos de cartas mágicas e armadilhas e de destruição ou controle não podem afetar esta carta.\n● Se você o invocou normalmente da sua mão por tributo de 3 monstros, você pode descartar 2 cartas da sua mão para o cemitério; após isso, ele ganha ATQ e DEF infinitos até o final do seu turno.\n● Seu oponente não pode escolher outros monstros como alvo de ataques.\n● Quando você estiver com Bereshit, o Dragão Celestial do Céus, Chatsi, o Intercessor Celestial e Sof, o Dragão Celestial da Luz no campo ou mão, invoque do seu deck de fusões para o campo o Celestial, Alfa e Ômega, o Princípio, Meio e Fim." }
+
+];
+
+  //=========== FUNÇÕES DE NAVEGAÇÃO DA LOJA ==============//
+
+window.showHome = () => { 
+    hideAll(); 
+    if (document.getElementById('home-msg')) document.getElementById('home-msg').style.display = 'block'; 
+};
+
+window.showLoja = () => { 
+    hideAll(); 
+    if (document.getElementById('loja-area')) document.getElementById('loja-area').style.display = 'block'; 
+};
+
+window.showAdmin = () => { 
+    hideAll(); 
+    if (document.getElementById('admin-area')) document.getElementById('admin-area').style.display = 'block'; 
+};
+
+window.showDeck = () => { 
+    hideAll(); 
+    if (document.getElementById('deck-area')) document.getElementById('deck-area').style.display = 'block'; 
+    if (typeof renderizarGrids === 'function') renderizarGrids(); 
+};
+
+window.showPerfil = () => { 
+    hideAll(); 
+    if (document.getElementById('perfil-area')) document.getElementById('perfil-area').style.display = 'block'; 
+};
+
+window.showAvisos = () => { 
+    hideAll(); 
+    if (document.getElementById('avisos-area')) {
+        document.getElementById('avisos-area').style.display = 'block'; 
+        if (typeof carregarAvisos === 'function') carregarAvisos();
+    }
+};
+
+window.showMembro = () => { 
+    hideAll(); 
+    if (document.getElementById('membro-area')) {
+        document.getElementById('membro-area').style.display = 'block'; 
+    }
+};
+
+function hideAll() {
+    if (document.getElementById('home-msg')) document.getElementById('home-msg').style.display = 'none';
+    if (document.getElementById('loja-area')) document.getElementById('loja-area').style.display = 'none';
+    if (document.getElementById('admin-area')) document.getElementById('admin-area').style.display = 'none';
+    if (document.getElementById('deck-area')) document.getElementById('deck-area').style.display = 'none';
+    if (document.getElementById('perfil-area')) document.getElementById('perfil-area').style.display = 'none';
+    if (document.getElementById('avisos-area')) document.getElementById('avisos-area').style.display = 'none';
+    if (document.getElementById('membro-area')) document.getElementById('membro-area').style.display = 'none';
+}
+
+        // 🔥 LISTA GLOBAL DE CARTAS BANIDAS DA LOJA
+        const imagensParaRemover = [
+            "Uria, Senhor das Chamas Ardentes 1.jpg",
+            "Thestalos, o Monarca da Tempestade de Fogo 1.jpg",
+            "Dragão de Magma 1.jpg",
+            "Dragão Desmascarado 1.jpg", "Dragão Desmascarado 2.jpg", "Dragão Desmascarado 3.jpg",
+            "Alfândega Imperial 1.jpg",
+            "Lodo Metálico Refletivo 1.jpg", "Lodo Metálico Refletivo 2.jpg", "Lodo Metálico Refletivo 3.jpg",
+            "Padrão da Estátua da Angústia 1.jpg", "Padrão da Estátua da Angústia 2.jpg", "Padrão da Estátua da Angústia 3.jpg",
+            "Solemn Wishes 1.jpg", "Solemn Wishes 2.jpg", "Solemn Wishes 3.jpg",
+            "Repressão 1.jpg", "Repressão 2.jpg",
+            "Vaso Mágico 1.jpg", "Vaso Mágico 2.jpg",
+            "Ligação gravitacional 1.jpg", "Ligação gravitacional 2.jpg", "Ligação gravitacional 3.jpg",
+            "Encarnação de Apófis 1.jpg", "Encarnação de Apófis 2.jpg", "Encarnação de Apófis 3.jpg",
+            "Slime do Deus Egípcio 1.jpg", "Slime do Deus Egípcio 2.jpg"
+        ];
+        
+        // --- Esta função pega as cartas do deck clicado na loja e monta com as informações completas igual ao deck --- //
+        window.renderizarCartasLojaCompleta = (lista) => {
+            const container = document.getElementById('cartas-container');
+            if (!container) return;
+            container.innerHTML = "";
+            
+            // Filtra as cartas removendo as banidas
+            const listaFiltrada = lista.filter(carta => !imagensParaRemover.includes(carta.img));
+            
+            listaFiltrada.forEach(carta => {
+                const div = document.createElement('div');
+                // Aplica a classe base e o tipo (monstro, magia, armadilha) para o CSS estilizar
+                div.className = `carta-item ${carta.tipo ? carta.tipo.toLowerCase() : ''}`;
+                
+                div.innerHTML = `
+                    <div class="carta-moldura">
+                        <h4 class="carta-nome">${carta.nome || 'Sem Nome'}</h4>
+                        <img src="${carta.img}" class="carta-foto" onclick="mostrarDetalheGeral('${carta.img}', '${document.querySelector('#modal-deck h2').innerText}')" onerror="this.src='https://via.placeholder.com/150?text=Erro'">
+                        
+                        <div class="carta-status">
+                            ${carta.tipo === "Monstro" || carta.tipo === "Fusão" || carta.atk !== undefined
+                                ? `<span><strong>ATQ:</strong> ${carta.atq ?? 0}</span> <span><strong>DEF:</strong> ${carta.def ?? 0}</span>` 
+                                : `<span><strong>TIPO:</strong> ${carta.tipo || 'Magia'}</span>`}
+                        </div>
+                        
+                        <div class="carta-efeito-container" style="background: rgba(255, 255, 255, 0.9); padding: 5px; border-radius: 4px; height: 60px; overflow-y: auto; font-size: 11px; color: #111; text-align: left;">
+                            <p class="carta-efeito">${carta.efeito || "Sem efeito descrito."}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+     //================ SALA DE FUNÇÕES DO PERFIL DO DUELISTA (INTEGRAÇÃO FIREBASE) ================//
+window.showPerfil = async function() {
+    // Esconde absolutamente todas as outras telas primeiro e abre o perfil
+    hideAll();
+    document.getElementById("perfil-area").style.display = "block";
+
+    if (!currentUid) return;
+
+    try {
+        // Carrega dados do duelista atual
+        const userRef = doc(db, "usuarios", currentUid);
+        
+        // Tenta buscar os dados da nuvem. Se der erro por o cliente estar offline pós-duelo, puxa do cache local sem travar
+        let userSnap;
+        try {
+            userSnap = await getDoc(userRef);
+        } catch (offlineError) {
+            console.warn("[PERFIL] Carregando perfil do cache devido à sincronização pendente...");
+            userSnap = await getDoc(userRef, { source: 'cache' });
+        }
+        
+        if (userSnap.exists()) {
+            const dados = userSnap.data();
+            
+            // Pega o número atual de vitórias e derrotas salvas no banco
+            let vitorias = dados.vitorias || 0;
+            const derrotas = dados.derrotas || 0;
+
+            // Trava de segurança para garantir que as vitórias nunca fiquem negativas por conta de derrotas
+            if (vitorias < 0) {
+                vitorias = 0;
+                await updateDoc(userRef, { vitorias: 0 });
+            }
+
+            // --- SISTEMA DE CONTROLE DE NÍVEL AUTOMÁTICO E CONSECUTIVO ---
+            const nivelCalculado = Math.floor(vitorias / 250) + 1;
+            const nivelAtualNoBanco = dados.nivel || 1;
+
+            if (nivelCalculado !== nivelAtualNoBanco) {
+                await updateDoc(userRef, { nivel: nivelCalculado });
+                console.log(`⭐ Nível atualizado! Novo Nível do Duelista: ${nivelCalculado}`);
+            }
+
+            // Preenche o campo de nome, vitórias e pontos na tela
+            document.getElementById("perfil-input-nome").value = dados.nome || "Duelista";
+            document.getElementById("perfil-vitorias").innerText = vitorias;
+            document.getElementById("perfil-pt").innerText = Number.isFinite(Number(dados.pt)) ? Number(dados.pt) : 0;
+
+            // --- EXIBIÇÃO DO NÍVEL E DERROTAS NO PAINEL DO PERFIL ---
+            let blocoStatusAdicionais = document.getElementById("perfil-status-adicionais");
+            const infoBox = document.querySelector("#perfil-area .info-box");
+
+            // 🔥 AJUSTE SEGURO: Se o bloco não existe, cria. Se já existe, atualiza de forma limpa.
+            if (!blocoStatusAdicionais && infoBox) {
+                blocoStatusAdicionais = document.createElement("div");
+                blocoStatusAdicionais.id = "perfil-status-adicionais";
+                infoBox.appendChild(blocoStatusAdicionais);
+            }
+
+            // Injeta os dados sempre atualizados para evitar bugs de elementos nulos
+            if (blocoStatusAdicionais) {
+                blocoStatusAdicionais.innerHTML = `
+                    <p style="font-size: 1.1rem; margin: 12px 0;">⭐ Nível do Duelista: <span id="perfil-nivel" style="color: #ffcc00; font-weight: bold;">${nivelCalculado}</span></p>
+                    <p style="font-size: 1.1rem; margin: 12px 0;">💀 Derrotas: <span id="perfil-derrotas" style="color: #ff4444; font-weight: bold;">${derrotas}</span></p>
+                `;
+            }
+
+            // Carrega foto de perfil se existir
+            const imgPreview = document.getElementById("perfil-preview-foto");
+            const placeholder = document.getElementById("perfil-placeholder-text");
+            if (dados.fotoPerfil) {
+                imgPreview.src = dados.fotoPerfil;
+                imgPreview.style.display = "block";
+                placeholder.style.display = "none";
+            } else {
+                imgPreview.style.display = "none";
+                placeholder.style.display = "flex";
+            }
+
+            // Calcula a posição no rank de vitórias buscando todos os usuários
+            const todosUsuariosSnap = await getDocs(collection(db, "usuarios"));
+            let listaJogadores = [];
+            todosUsuariosSnap.forEach(uDoc => {
+                const uDados = uDoc.data();
+                listaJogadores.push({
+                    uid: uDoc.id,
+                    vitorias: uDados.vitorias || 0
+                });
+            });
+
+            // Ordena os jogadores por quem tem mais vitórias
+            listaJogadores.sort((a, b) => b.vitorias - a.vitorias);
+            
+            // Encontra o índice (posição) do jogador atual na lista
+            const minhaPosicao = listaJogadores.findIndex(j => j.uid === currentUid) + 1;
+            document.getElementById("perfil-posicao-rank").innerText = minhaPosicao + "º Lugar";
+        }
+    } catch (error) {
+        console.error("Erro ao carregar o perfil:", error);
+    }
+};
+
+// Salvar a alteração de Nome no Firebase
+window.salvarNomePerfil = async function() {
+    const novoNome = document.getElementById("perfil-input-nome").value.trim();
+    if (!novoNome) {
+        alert("O nome do duelista não pode estar vazio!");
+        return;
+    }
+    if (!currentUid) return;
+
+    try {
+        await updateDoc(doc(db, "usuarios", currentUid), { nome: novoNome });
+        document.getElementById("display-nome").innerText = novoNome.toUpperCase();
+        alert("Nome de duelista updated com sucesso! 🎴");
+    } catch (error) {
+        console.error("Erro ao atualizar nome:", error);
+        alert("Erro ao salvar o nome.");
+    }
+};
+
+// Listener para escutar o upload da foto e avisar se passar do limite de 1MB
+document.getElementById("perfil-upload-foto").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Verifica se o arquivo é maior que 1MB (1.048.576 bytes)
+    if (file.size > 1048576) {
+        alert("A foto escolhida é muito pesada! Por favor, escolha uma imagem de no máximo 1MB.");
+        this.value = ""; // Limpa o campo de upload para permitir tentar de novo
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async function() {
+        const base64String = reader.result;
+        
+        // Atualiza a visualização local imediata
+        document.getElementById("perfil-preview-foto").src = base64String;
+        document.getElementById("perfil-preview-foto").style.display = "block";
+        document.getElementById("perfil-placeholder-text").style.display = "none";
+
+        // Salva a string Base64 da imagem diretamente na ficha do usuário no Firebase
+        if (currentUid) {
+            try {
+                await updateDoc(doc(db, "usuarios", currentUid), { fotoPerfil: base64String });
+                alert("Foto do duelista salva com sucesso! 👤");
+            } catch (error) {
+                console.error("Erro ao salvar foto no Firebase:", error);
+                alert("Falha ao salvar imagem no servidor.");
+            }
+        }
+    };
+    reader.readAsDataURL(file);
+});
+        
+      window.abrirDeckAlexis = () => renderModal("CONTEÚDO: DECK DA ALEXIS", cartasAlexis);
+      window.abrirDeckJaden = () => renderModal("CONTEÚDO: DECK DO JADEN", cartasJaden);
+      window.abrirDeckJoey = () => renderModal("CONTEÚDO: DECK DO JOEY", cartasJoey);
+      window.abrirDeckUria = () => renderModal("CONTEÚDO: DECK DO URIA", cartasUria);
+      window.abrirDeckHamon = () => renderModal("CONTEÚDO: DECK DO HAMON", cartasHamon);
+      window.abrirDeckDragaoFinal = () => renderModal("CONTEÚDO: DECK DO DRAGÃO FINAL", cartasDragaoFinal);
+      window.abrirDeckAgua = () => renderModal("CONTEÚDO: DECK DE ÁGUA", cartasAgua);
+      window.abrirDeckSof = () => renderModal("CONTEÚDO: DECK DO SOF", cartasSof);
+      window.abrirDeckChatsi = () => renderModal("CONTEÚDO: DECK DO CHATSI", cartasChatsi);
+      window.abrirDeckBereshit = () => renderModal("CONTEÚDO: DECK DO BERESHIT", cartasBereshit);
+
+     // === FUNÇAO RENDERIZAR MODAL === //
+function renderModal(titulo, lista) {
+    const container = document.getElementById('cartas-container');
+    document.querySelector('#modal-deck h2').innerText = titulo;
+    container.innerHTML = "";
+    
+    // 🔥 CORREÇÃO: Só filtra se NÃO for o Deck do Uria. 
+    // Assim o deck do Uria fica 100% visível quando clicado na loja!
+    const listaFiltrada = titulo.toUpperCase().includes("URIA") 
+        ? lista 
+        : lista.filter(carta => !imagensParaRemover.includes(carta.img));
+    
+    listaFiltrada.forEach(carta => {
+        const div = document.createElement('div');
+        div.className = "carta-item";
+        div.innerHTML = `<img src="${carta.img}" onclick="mostrarDetalheGeral('${carta.img}', '${titulo}')" onerror="this.src='https://via.placeholder.com/150?text=Erro'">`;
+        container.appendChild(div);
+    });
+    document.getElementById('modal-deck').style.display = 'block';
+}
+
+       // === FUNÇAO CRIAR MINI CARTAS === //
+       function criarItemMini(carta, local) {
+    const div = document.createElement('div');
+    div.className = "carta-item-mini";
+    div.innerHTML = `
+        <img src="${carta.img}" onclick="mostrarDetalheGeral('${carta.img}', '${local}')" 
+             onerror="this.src='https://via.placeholder.com/150?text=Erro'">
+    `;
+    return div;
+}
+
+           // ===== FUNÇAO RENDERIZAR GRIDS ===== //
+function renderizarGrids() {
+    const gridPrincipal = document.getElementById('meu-deck-list');
+    const gridFusoes = document.getElementById('deck-fusoes-list');
+    const gridExtra = document.getElementById('extra-deck-list');
+
+    if (gridPrincipal) gridPrincipal.innerHTML = "";
+    if (gridFusoes) gridFusoes.innerHTML = "";
+    if (gridExtra) gridExtra.innerHTML = "";
+
+    // Função interna para criar o HTML da cartinha (para não repetir código)
+    const gerarHtmlCarta = (carta, local) => {
+        const div = document.createElement('div');
+        div.className = "carta-item-mini"; // Classe que você já usa no CSS
+        div.innerHTML = `<img src="${carta.img}" onclick="mostrarDetalheGeral('${carta.img}', '${local}')">`;
+        return div;
+    };
+
+    // 1. Organiza o Deck Principal
+    meuDeckArray.forEach(carta => {
+        if (!carta.fusao) {
+            gridPrincipal.appendChild(gerarHtmlCarta(carta, "DECK_PRINCIPAL"));
+        } else {
+            // Se for fusão e estiver no lugar errado, joga pro grid de fusões
+            gridFusoes.appendChild(gerarHtmlCarta(carta, "DECK_FUSOES"));
+        }
+    });
+
+    // 2. Organiza o Deck de Fusões
+    deckFusoesArray.forEach(carta => {
+        gridFusoes.appendChild(gerarHtmlCarta(carta, "DECK_FUSOES"));
+    });
+
+    // 3. Organiza o Extra Deck (Conquistas)
+    extraDeckArray.forEach(carta => {
+        gridExtra.appendChild(gerarHtmlCarta(carta, "EXTRA_DECK"));
+    });
+}
+
+      // ===== WINDOW MOSTRAR CARTAS DETALHE GERAL ===== //
+window.mostrarDetalheGeral = (img, local) => {
+    let lista;
+    
+    // Criando a variável localUpper para evitar o erro de "not defined"
+    const localUpper = local ? local.toUpperCase() : "";
+
+    // Padronização das buscas por string contida no título ou local 
+    if (localUpper.includes("JADEN")) lista = cartasJaden;
+    else if (localUpper.includes("JOEY")) lista = cartasJoey; 
+    else if (localUpper.includes("ALEXIS")) lista = cartasAlexis; 
+    else if (localUpper.includes("URIA")) lista = cartasUria;
+    else if (localUpper.includes("HAMON")) lista = cartasHamon; 
+    else if (localUpper.includes("DRAGÃO FINAL") || localUpper.includes("DRAGAOFINAL")) lista = cartasDragaoFinal;
+    else if (localUpper.includes("ÁGUA") || localUpper.includes("AGUA")) lista = cartasAgua; 
+    else if (local === "DECK_PRINCIPAL") lista = meuDeckArray;
+    else if (local === "DECK_FUSOES") lista = deckFusoesArray; 
+    else if (local === "EXTRA_DECK") lista = extraDeckArray;
+    else if (localUpper.includes("SOF") || localUpper.includes("SOF")) lista = cartasSof; 
+    else if (localUpper.includes("BERESHIT")) lista = cartasBereshit; 
+    else if (localUpper.includes("CHATSI")) lista = cartasChatsi;
+    // Se o clique vier da Loja ou de "TODAS AS CARTAS DA LOJA", busca em todas as listas de uma vez
+    else if (localUpper.includes("LOJA")) {
+        lista = [
+            ...(typeof cartasJoey !== 'undefined' ? cartasJoey : []),
+            ...(typeof cartasJaden !== 'undefined' ? cartasJaden : []),
+            ...(typeof cartasAlexis !== 'undefined' ? cartasAlexis : []),
+            ...(typeof cartasUria !== 'undefined' ? cartasUria : []),
+            ...(typeof cartasHamon !== 'undefined' ? cartasHamon : []),
+            ...(typeof cartasDragaoFinal !== 'undefined' ? cartasDragaoFinal : []),
+            ...(typeof cartasAgua !== 'undefined' ? cartasAgua : []),
+            ...(typeof cartasSof !== 'undefined' ? cartasSof : []),
+            ...(typeof cartasBereshit !== 'undefined' ? cartasBereshit : []),
+            ...(typeof cartasChatsi !== 'undefined' ? cartasChatsi : [])
+        ];
+    }
+    else lista = [];
+
+    const carta = lista.find(c => c.img === img); 
+    if (!carta) return;
+
+    cartaSelecionadaAtual = { ...carta, localOrigem: local }; 
+    document.getElementById('detalhe-img').src = carta.img; 
+    document.getElementById('detalhe-nome').innerText = carta.nome; 
+    const status = document.getElementById('detalhe-status');
+
+    if (typeof carta.atq === 'number' && typeof carta.def === 'number') { 
+        status.innerText = `ATQ: ${carta.atq} / DEF: ${carta.def}`;
+        status.style.display = "block"; 
+    } else { 
+        status.style.display = "none"; 
+    } 
+    document.getElementById('detalhe-efeito').innerText = carta.efeito || "Sem efeito descrito."; 
+    document.getElementById('modal-detalhe').style.display = 'flex';
+};
+   
+
+// =========================================================
+// LIMITE DE CÓPIAS DO DECK — IDENTIFICAÇÃO PELO CÓDIGO DA IMAGEM
+// Ex.: A-12.1 / A-12.2 / A-12.3 = mesma carta A-12
+// =========================================================
+const LIMITES_ESPECIAIS_DECK = {
+    "ressurreição": 1,
+    "contra atq": 1,
+    "ressurreição dos mortos": 2,
+
+    "bereshit, o dragão celestial do céus": 1,
+    "chatsi, o intercessor celestial": 1
+};
+
+function normalizarNomeCartaDeck(nome) {
+    return String(nome || "").trim().toLocaleLowerCase("pt-BR");
+}
+
+function obterIdentificadorBaseCarta(carta) {
+    const img = String(carta?.img || "").split("/").pop();
+
+    // Aceita A-12.1.png, A-12.2.png, B-20.3.png etc.
+    const match = img.match(/([A-Z]+-\d+)(?:\.\d+)?\.(?:png|jpg|jpeg|webp)$/i);
+
+    if (match) {
+        return match[1].toUpperCase();
+    }
+
+    // Segurança para cartas antigas sem código no arquivo.
+    return normalizarNomeCartaDeck(carta?.nome);
+}
+
+function limitePermitidoCarta(carta) {
+    const nome = normalizarNomeCartaDeck(carta?.nome);
+    return LIMITES_ESPECIAIS_DECK[nome] ?? 3;
+}
+
+function contarCopiasDaCarta(lista, cartaAlvo) {
+    const idAlvo = obterIdentificadorBaseCarta(cartaAlvo);
+
+    return (Array.isArray(lista) ? lista : []).filter(carta =>
+        obterIdentificadorBaseCarta(carta) === idAlvo
+    ).length;
+}
+
+// ===== FUNÇAO ADIDICIONAR CARTA ===== //
+function podeAdicionarCartaAoDeck(carta, listaDestino) {
+    if (!carta) return false;
+
+    const limite = limitePermitidoCarta(carta);
+    const quantidadeAtual = contarCopiasDaCarta(listaDestino, carta);
+
+    if (quantidadeAtual >= limite) {
+        alert(
+            `⚠️ "${carta.nome}" permite no máximo ${limite} ` +
+            `${limite === 1 ? "cópia" : "cópias"} neste deck.`
+        );
+        return false;
+    }
+
+    return true;
+}
+
+document.getElementById('btn-mover-deck').addEventListener('click', async () => {
+    if (!cartaSelecionadaAtual) return;
+
+    if (cartaSelecionadaAtual.fusao) {
+        if (cartaSelecionadaAtual.localOrigem === "EXTRA_DECK") {
+
+            if (!podeAdicionarCartaAoDeck(cartaSelecionadaAtual, deckFusoesArray)) {
+                return;
+            }
+
+            const indice = extraDeckArray.findIndex(
+                c => c.img === cartaSelecionadaAtual.img
+            );
+
+            if (indice !== -1) {
+                const [cartaMovida] = extraDeckArray.splice(indice, 1);
+                deckFusoesArray.push(cartaMovida);
+            }
+        }
+    } else {
+        if (cartaSelecionadaAtual.localOrigem === "EXTRA_DECK") {
+
+            if (!podeAdicionarCartaAoDeck(cartaSelecionadaAtual, meuDeckArray)) {
+                return;
+            }
+
+            const indice = extraDeckArray.findIndex(
+                c => c.img === cartaSelecionadaAtual.img
+            );
+
+            if (indice !== -1) {
+                const [cartaMovida] = extraDeckArray.splice(indice, 1);
+                meuDeckArray.push(cartaMovida);
+            }
+        }
+    }
+
+    fecharModais();
+    await salvarDeckNoFirestore();
+    renderizarGrids();
+});
+
+document.getElementById('btn-mover-extra').addEventListener('click', async () => {
+    if (!cartaSelecionadaAtual) return;
+    if (cartaSelecionadaAtual.fusao) {
+        if (cartaSelecionadaAtual.localOrigem === "DECK_FUSOES") {
+            deckFusoesArray = deckFusoesArray.filter(c => c.img !== cartaSelecionadaAtual.img);
+            extraDeckArray.push(cartaSelecionadaAtual);
+        }
+    } else {
+        if (cartaSelecionadaAtual.localOrigem === "DECK_PRINCIPAL") {
+            meuDeckArray = meuDeckArray.filter(c => c.img !== cartaSelecionadaAtual.img);
+            extraDeckArray.push(cartaSelecionadaAtual);
+        }
+    }
+    fecharModais();
+    await salvarDeckNoFirestore();
+    renderizarGrids();
+});
+
+window.fecharModais = () => {
+    document.getElementById('modal-deck').style.display = 'none';
+    document.getElementById('modal-detalhe').style.display = 'none';
+};
+
+              // ===== WINDOW COMPRAR DECK ===== //
+window.comprarDeck = async (moeda, preco, nomeDeck) => {
+    if (!currentUid) return alert("Faça login primeiro!");
+
+    const userRef = doc(db, "usuarios", currentUid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
+    // Evita NaN e permite compras que deixem exatamente 0 PT.
+    const precoNumerico = Number(preco);
+    const saldoNumerico = Number(userData[moeda]);
+    if (!['pt', 'credit'].includes(moeda) || !Number.isFinite(precoNumerico) || precoNumerico < 0 ||
+        !Number.isFinite(saldoNumerico) || saldoNumerico < 0) {
+        alert('Preço ou saldo inválido. Verifique os dados da conta.');
+        return;
+    }
+
+
+    // 1. Verifica se tem saldo
+    if (saldoNumerico < precoNumerico) {
+        alert("Saldo insuficiente!");
+        return;
+    }
+
+    // 2. Define qual lista de cartas entregar
+    let cartasParaEntregar = [];
+    if (nomeDeck === "Deck Alexis") cartasParaEntregar = cartasAlexis;
+    else if (nomeDeck === "Deck Jaden") cartasParaEntregar = cartasJaden;
+    else if (nomeDeck === "Deck Joey") cartasParaEntregar = cartasJoey;
+    else if (nomeDeck === "Deck Uria") cartasParaEntregar = cartasUria;
+    else if (nomeDeck === "Deck Hamon") cartasParaEntregar = cartasHamon;
+    else if (nomeDeck === "Deck Dragao Final") cartasParaEntregar = cartasDragaoFinal;
+    else if (nomeDeck === "Deck Agua") cartasParaEntregar = cartasAgua;
+    else if (nomeDeck === "Deck Sof") cartasParaEntregar = cartasSof;
+    else if (nomeDeck === "Deck Bereshit") cartasParaEntregar = cartasBereshit;
+    else if (nomeDeck === "Deck Chatsi") cartasParaEntregar = cartasChatsi;
+
+    if (cartasParaEntregar.length === 0) {
+        alert("Erro: Lista de cartas do deck não encontrada!");
+        return;
+    }
+
+    try {
+        // 3. Desconta o valor e adiciona as cartas ao Extra Deck (Conquistas)
+        await updateDoc(userRef, {
+            [moeda]: saldoNumerico - precoNumerico,
+            extraDeck: arrayUnion(...cartasParaEntregar)
+        });
+
+        alert(`Compra realizada! O ${nomeDeck} foi adicionado às suas conquistas.`);
+        
+        // 4. Atualiza a tela automaticamente
+        renderizarGrids(); 
+    } catch (error) {
+        console.error("Erro na compra:", error);
+        alert("Erro ao processar a compra.");
+    }
+};
+
+window.telaReg = () => {
+    document.getElementById('login-header').innerText = "CADASTRAR";
+    document.getElementById('reg-field').style.display = 'block';
+    document.getElementById('btn-entrar').style.display = 'none';
+    document.getElementById('btn-cadastrar').style.display = 'block';
+    document.getElementById('link-reg').style.display = 'none';
+    document.getElementById('link-voltar').style.display = 'block';
+};
+
+window.telaLog = () => {
+    document.getElementById('login-header').innerText = "YU GI OH RPG PRIME";
+    document.getElementById('reg-field').style.display = 'none';
+    document.getElementById('btn-entrar').style.display = 'block';
+    document.getElementById('btn-cadastrar').style.display = 'none';
+    document.getElementById('link-reg').style.display = 'block';
+    document.getElementById('link-voltar').style.display = 'none';
+};
+
+window.telaReset = () => {
+    document.getElementById('login-header').innerText = "RECUPERAR";
+    document.getElementById('btn-entrar').style.display = 'none';
+    document.getElementById('btn-recuperar').style.display = 'block';
+    document.getElementById('link-reset').style.display = 'none';
+    document.getElementById('link-voltar').style.display = 'block';
+};
+
+document.getElementById('btn-entrar').addEventListener('click', () => {
+    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
+    .catch(() => alert("Erro no login"));
+});
+
+function gerarDeckJoeyPronto() {
+    const principal = [];
+    const fusoes = [];
+    cartasJoey.forEach(c => {
+        if (c.fusao === true) fusoes.push(c);
+        else principal.push(c);
+    });
+    return { principal, fusoes };
+}
+
+// ====== BOTÃO CADASTRAR (CORRIGIDO) =====
+document.getElementById('btn-cadastrar').addEventListener('click', async () => {
+    const nome = document.getElementById('reg-nome').value;
+    if (!nome) return alert("Digite um nome!");
+
+    try {
+        const res = await createUserWithEmailAndPassword(
+            auth, 
+            document.getElementById('email').value, 
+            document.getElementById('password').value
+        );
+        
+        // Gera o deck inicial do Joey
+        const deckJoey = gerarDeckJoeyPronto();
+
+        // Referência do documento do novo usuário no Firestore
+        const novoUserRef = doc(db, "usuarios", res.user.uid);
+
+        // Salva todos os dados iniciais do novo usuário exatamente no padrão do Firebase
+        await setDoc(novoUserRef, {
+            admin: false,//--parte so seve para min o admin, se ficar true aqui todos os usuarios vao ser admin entao deixe fause--//
+            bonusVitoria: 100,
+            deckFusoes: deckJoey.fusoes,
+            derrotas: 0,
+            extraDeck: [],
+            fotoPerfil: "",
+            meuDeck: deckJoey.principal,
+            nome: nome,
+            pt: 10000,
+            credit: 1000,
+            vitorias: 0
+        });
+
+        alert("Conta criada com sucesso!");
+    } catch (error) {
+        console.error("Erro ao criar conta:", error);
+        alert("Erro ao criar conta: " + error.message);
+    }
+});
+
+document.getElementById('btn-recuperar').addEventListener('click', () => {
+    sendPasswordResetEmail(auth, document.getElementById('email').value)
+        .then(() => alert("Email enviado!"))
+        .catch(() => alert("Erro ao enviar"));
+});
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+    signOut(auth).then(() => location.reload());
+});
+
+// ======== WINDOW SINCRONIZA DADOS CARTAS ========= //
+window.sincronizarDadosDasCartas = async () => {
+    if (!currentUid) return;
+
+    const listas = [
+        ...(typeof cartasJoey !== 'undefined' ? cartasJoey : []),
+        ...(typeof cartasJaden !== 'undefined' ? cartasJaden : []),
+        ...(typeof cartasAlexis !== 'undefined' ? cartasAlexis : []),
+        ...(typeof cartasUria !== 'undefined' ? cartasUria : []),
+        ...(typeof cartasHamon !== 'undefined' ? cartasHamon : []),
+        ...(typeof cartasDragaoFinal !== 'undefined' ? cartasDragaoFinal : []),
+        ...(typeof cartasAgua !== 'undefined' ? cartasAgua : []),
+        ...(typeof cartasSof !== 'undefined' ? cartasSof : []),
+        ...(typeof cartasBereshit !== 'undefined' ? cartasBereshit : []),
+        ...(typeof cartasChatsi !== 'undefined' ? cartasChatsi : [])
+    ];
+
+    const userRef = doc(db, "usuarios", currentUid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return;
+
+    const d = userSnap.data();
+
+    const atualizarArray = (listaBanco) => {
+        if (!listaBanco || !Array.isArray(listaBanco)) return [];
+        return listaBanco.map(cBtn => {
+            const cCod = listas.find(c => c.img.toLowerCase() === cBtn.img.toLowerCase());
+            
+            if (cCod) {
+                const novaCarta = {
+                    nome: cCod.nome || "Sem Nome",
+                    efeito: cCod.efeito || "Sem descrição",
+                    img: cCod.img,
+                    fusao: cCod.fusao || false
+                };
+
+                if (cCod.atq !== undefined) {
+                    novaCarta.tipo = cCod.tipo || "Monstro";
+                    novaCarta.nv = Number(cCod.nv ?? 0);
+                    novaCarta.atq = Number(cCod.atq);
+                    novaCarta.def = Number(cCod.def);
+                } else {
+                    novaCarta.tipo = cCod.tipo || "Magia";
+                    delete novaCarta.nv;
+                    delete novaCarta.atq;
+                    delete novaCarta.def;
+                }
+
+                return novaCarta;
+            }
+            return cBtn;
+        });
+    };
+
+    try {
+        const novosDados = {
+            meuDeck: atualizarArray(d.meuDeck),
+            deckFusoes: atualizarArray(d.deckFusoes),
+            extraDeck: atualizarArray(d.extraDeck)
+        };
+
+        await updateDoc(userRef, novosDados);
+        
+        meuDeckArray = novosDados.meuDeck;
+        deckFusoesArray = novosDados.deckFusoes;
+        extraDeckArray = novosDados.extraDeck;
+        renderizarGrids();
+
+        console.log("✅ Cartas sincronizadas: NV, ATQ, DEF, tipo e efeitos atualizados no Firebase.");
+    } catch (e) {
+        console.error("❌ Erro na sincronização dos dados das cartas:", e);
+    }
+};
+
+         // ===== FUNÇÃO CARREGAR PAINEL ADMIN ===== //
+window.filtrarUsuariosPorId = async function() {
+    const input = document.getElementById('input-busca-id');
+    const container = document.getElementById('lista-jogadores');
+    if (!input || !container) return;
+
+    // Limpa espaços em branco e garante o texto puro
+    const idDigitado = input.value.trim();
+
+    if (!idDigitado) {
+        container.innerHTML = `<p style="color: #ff4d4d; text-align: center; padding: 20px;">Cole ou digite um ID para pesquisar.</p>`;
+        return;
+    }
+
+    container.innerHTML = `<p style="color: #ffcc00; text-align: center; padding: 20px;">🔍 Buscando dados do ID: ${idDigitado}...</p>`;
+
+    try {
+        // Consulta direta pelo ID exato do documento no Firestore
+        const userRef = doc(db, "usuarios", idDigitado);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            const userData = { id: userSnap.id, ...userSnap.data() };
+            renderizarListaAdmin([userData]);
+        } else {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 20px; background: rgba(255,0,0,0.1); border: 1px solid #ff4d4d; border-radius: 8px;">
+                    <p style="color: #ff4d4d; margin: 0; font-weight: bold;">Nenhum usuário encontrado!</p>
+                    <small style="color: #ccc;">O ID "<strong>${idDigitado}</strong>" não existe na coleção "usuarios".</small>
+                </div>`;
+        }
+    } catch (erro) {
+        console.error("Erro Firestore:", erro);
+        container.innerHTML = `<p style="color: #ff4d4d; text-align: center; padding: 20px;">Erro de permissão ou conexão com o banco de dados.</p>`;
+    }
+};
+
+function renderizarListaAdmin(lista) {
+    const container = document.getElementById('lista-jogadores');
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    lista.forEach((d) => {
+        const uid = d.id;
+        const bonusAtual = d.bonusVitoria || 100;
+
+        const card = document.createElement('div');
+        card.className = "user-card";
+        
+        card.innerHTML = `
+            <strong>Duelista: ${d.nome || 'Sem Nome'}</strong><br>
+            <small style="color: #ffcc00; font-family: monospace;">ID: ${uid}</small><br>
+            
+            <div style="margin-top: 6px;">
+                <span style="display: inline-block; margin-right: 10px;">
+                    <img src="moeda_de_prata.png" style="width:14px; height:14px; vertical-align:middle;"> Prata: <strong>${d.pt || 0}</strong>
+                </span>
+                <span style="display: inline-block;">
+                    <img src="moeda_de_ouro.png" style="width:14px; height:14px; vertical-align:middle;"> Ouro: <strong>${d.credit || 0}</strong>
+                </span>
+            </div>
+
+            <div style="margin-top: 6px; font-size: 0.88rem; color: #ddd; background: rgba(255,255,255,0.05); padding: 6px; border-radius: 4px;">
+                🏆 Rank: <strong style="color: #ffcc00;">${d.rank || 'Bronze'}</strong> | 
+                ⚔️ Vitórias: <strong style="color: #2ec4b6;">${d.vitorias || 0}</strong> | 
+                💀 Derrotas: <strong style="color: #e71d36;">${d.derrotas || 0}</strong>
+            </div>
+
+            <!-- CONTROLE DE BÔNUS DE PT POR VITÓRIA -->
+            <div style="margin-top: 10px; padding: 8px; background: rgba(255, 204, 0, 0.1); border: 1px dashed #ffcc00; border-radius: 6px;">
+                <label style="font-size: 0.85rem; color: #ffcc00; font-weight: bold; display: block; margin-bottom: 6px;">
+                    🎁 Bônus de Prata por Vitória (PT):
+                </label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="select-bonus-${uid}" style="padding: 6px; border-radius: 4px; background: #111; color: #fff; border: 1px solid #ffcc00; font-weight: bold;">
+                        <option value="100" ${bonusAtual === 100 ? 'selected' : ''}>+100 PT (Padrão)</option>
+                        <option value="200" ${bonusAtual === 200 ? 'selected' : ''}>+200 PT</option>
+                        <option value="300" ${bonusAtual === 300 ? 'selected' : ''}>+300 PT</option>
+                        <option value="400" ${bonusAtual === 400 ? 'selected' : ''}>+400 PT</option>
+                        <option value="500" ${bonusAtual === 500 ? 'selected' : ''}>+500 PT</option>
+                        <option value="600" ${bonusAtual === 600 ? 'selected' : ''}>+600 PT</option>
+                        <option value="700" ${bonusAtual === 700 ? 'selected' : ''}>+700 PT</option>
+                        <option value="800" ${bonusAtual === 800 ? 'selected' : ''}>+800 PT</option>
+                        <option value="900" ${bonusAtual === 900 ? 'selected' : ''}>+900 PT</option>
+                        <option value="1000" ${bonusAtual === 1000 ? 'selected' : ''}>+1000 PT (Máximo)</option>
+                    </select>
+                    <button type="button" onclick="salvarBonusDuelista('${uid}')" style="padding: 6px 12px; background: #2ec4b6; color: #000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">
+                        Ativar Bônus
+                    </button>
+                </div>
+            </div>
+            
+            <div class="controls" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                <button class="btn-green" onclick="mod('${uid}','pt',100)">
+                    <img src="moeda_de_prata.png" style="width:12px; height:12px;"> +100 Prata
+                </button>
+                <button class="btn-red" onclick="mod('${uid}','pt',-100)">
+                    <img src="moeda_de_prata.png" style="width:12px; height:12px;"> -100 Prata
+                </button>
+                <button class="btn-orange" onclick="mod('${uid}','credit',50)">
+                    <img src="moeda_de_ouro.png" style="width:12px; height:12px;"> +50 Ouro
+                </button>
+                <button class="btn-red" onclick="mod('${uid}','credit',-50)">
+                    <img src="moeda_de_ouro.png" style="width:12px; height:12px;"> -50 Ouro
+                </button>
+                
+                <!-- BOTÃO 1: ENVIAR DECK COMPLETO -->
+                <button class="btn-blue" onclick="gestaoCards('${uid}')">🎁 ENVIAR DECK COMPLETO</button>
+                
+                <!-- BOTÃO 2: DAR CARTA INDIVIDUAL PELO NOME -->
+                <button class="btn-purple" onclick="darCartaEspecifica('${uid}')" style="background: #8a2be2; color: #fff; font-weight: bold; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer;">🎴 DAR CARTA INDIVIDUAL</button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Salva o bônus no Firestore sob a propriedade 'bonusVitoria'
+window.salvarBonusDuelista = async function(uid) {
+    const select = document.getElementById(`select-bonus-${uid}`);
+    if (!select) return;
+
+    const valorBonus = parseInt(select.value);
+
+    try {
+        const ref = doc(db, "usuarios", uid);
+        await updateDoc(ref, { bonusVitoria: valorBonus });
+        alert(`⭐ Bônus de +${valorBonus} PT salvo com sucesso no banco!`);
+        window.filtrarUsuariosPorId();
+    } catch (erro) {
+        console.error("Erro ao salvar bônus:", erro);
+        alert("Erro ao salvar no banco de dados.");
+    }
+};
+
+// Substitua sua função mod por esta versão otimizada com increment
+window.mod = async (id, campo, qtd) => {
+    try {
+        const ref = doc(db, "usuarios", id);
+        await updateDoc(ref, { 
+            [campo]: increment(qtd) 
+        });
+        window.filtrarUsuariosPorId();
+    } catch (erro) {
+        console.error("Erro ao modificar saldo:", erro);
+    }
+};
+
+//====== ENVIAR DECK COMPLETO =======//
+window.gestaoCards = async (id) => {
+    const nomeDeck = prompt("Qual deck deseja enviar? (Ex: Deck Uria)");
+    
+    if (!nomeDeck) return;
+
+    let listaParaEnviar = [];
+
+    if (nomeDeck === "Deck Uria") listaParaEnviar = typeof cartasUria !== "undefined" ? cartasUria : [];
+    else if (nomeDeck === "Deck Jaden") listaParaEnviar = typeof cartasJaden !== "undefined" ? cartasJaden : [];
+    else if (nomeDeck === "Deck Alexis") listaParaEnviar = typeof cartasAlexis !== "undefined" ? cartasAlexis : [];
+    else if (nomeDeck === "Deck Joey") listaParaEnviar = typeof cartasJoey !== "undefined" ? cartasJoey : [];
+    else if (nomeDeck === "Deck Hamon") listaParaEnviar = typeof cartasHamon !== "undefined" ? cartasHamon : [];
+    else if (nomeDeck === "Deck Dragao Final") listaParaEnviar = typeof cartasDragaoFinal !== "undefined" ? cartasDragaoFinal : [];
+    else if (nomeDeck === "Deck Agua") listaParaEnviar = typeof cartasAgua !== "undefined" ? cartasAgua : [];
+    else if (nomeDeck === "Deck Sof") listaParaEnviar = typeof cartasSof !== "undefined" ? cartasSof : [];
+    else if (nomeDeck === "Deck Bereshit") listaParaEnviar = typeof cartasBereshit !== "undefined" ? cartasBereshit : [];
+    else if (nomeDeck === "Deck Chatsi") listaParaEnviar = typeof cartasChatsi !== "undefined" ? cartasChatsi : [];
+
+    if (listaParaEnviar && listaParaEnviar.length > 0) {
+        const ref = doc(db, "usuarios", id);
+        
+        try {
+            await updateDoc(ref, {
+                extraDeck: arrayUnion(...listaParaEnviar)
+            });
+            alert(`✅ Deck "${nomeDeck}" enviado com sucesso!`);
+        } catch (error) {
+            console.error("Erro ao enviar deck:", error);
+            alert("Erro ao salvar no Firebase.");
+        }
+    } else {
+        alert("Erro: Deck não encontrado! Digite exatamente o nome correto do deck.");
+    }
+};
+
+//====== ENVIAR CARTA INDIVIDUAL (SALVA OBJETO COMPLETO) =======//
+window.darCartaEspecifica = async function(uid) {
+    const termoBusca = prompt("Digite o nome da carta que deseja enviar (Ex: Blade Skater):");
+    
+    if (!termoBusca || !termoBusca.trim()) return;
+
+    const termoLimpo = termoBusca.trim().toLowerCase();
+
+    // Reúne todas as cartas completas registradas nos decks da loja
+    const todosOsDecks = [
+        ...(typeof cartasUria !== "undefined" ? cartasUria : []),
+        ...(typeof cartasJaden !== "undefined" ? cartasJaden : []),
+        ...(typeof cartasAlexis !== "undefined" ? cartasAlexis : []),
+        ...(typeof cartasJoey !== "undefined" ? cartasJoey : []),
+        ...(typeof cartasHamon !== "undefined" ? cartasHamon : []),
+        ...(typeof cartasDragaoFinal !== "undefined" ? cartasDragaoFinal : []),
+        ...(typeof cartasAgua !== "undefined" ? cartasAgua : []),
+        ...(typeof cartasSof !== "undefined" ? cartasSof : []),
+        ...(typeof cartasBereshit !== "undefined" ? cartasBereshit : []),
+        ...(typeof cartasChatsi !== "undefined" ? cartasChatsi : [])
+    ];
+
+    // Busca o OBJETO COMPLETO da carta no banco de cartas da loja
+    const cartaObjeto = todosOsDecks.find(c => {
+        const nome = typeof c === "string" ? c : c?.nome;
+        return nome && nome.toLowerCase().trim() === termoLimpo;
+    }) || todosOsDecks.find(c => {
+        const nome = typeof c === "string" ? c : c?.nome;
+        return nome && nome.toLowerCase().includes(termoLimpo);
+    });
+
+    if (!cartaObjeto) {
+        alert(`❌ A carta "${termoBusca}" não foi encontrada nos decks da loja!\nVerifique se o nome está correto.`);
+        return;
+    }
+
+    try {
+        const ref = doc(db, "usuarios", uid);
+        
+        // Envia o OBJETO COMPLETO exatamente como o deck inteiro envia
+        await updateDoc(ref, {
+            extraDeck: arrayUnion(cartaObjeto)
+        });
+
+        const nomeExibicao = typeof cartaObjeto === "string" ? cartaObjeto : cartaObjeto.nome;
+        alert(`✅ Carta "${nomeExibicao}" com imagem enviada com sucesso!`);
+    } catch (erro) {
+        console.error("Erro ao entregar carta:", erro);
+        alert("Erro ao atualizar o banco de dados.");
+    }
+};
+
+//====== WINDOW GESTAO CARDS =======//
+window.gestaoCards = async (id) => {
+    // Abre a caixinha para você digitar
+    const nomeDeck = prompt("Qual deck deseja enviar? (Escreva: Deck Uria)");
+    
+    if (!nomeDeck) return;
+
+    let listaParaEnviar = [];
+
+    // O segredo está aqui: o nome digitado tem que bater com o "if"
+    if (nomeDeck === "Deck Uria") {
+        listaParaEnviar = cartasUria;
+    } else if (nomeDeck === "Deck Jaden") {
+        listaParaEnviar = cartasJaden;
+    } else if (nomeDeck === "Deck Alexis") {
+        listaParaEnviar = cartasAlexis;
+    } else if (nomeDeck === "Deck Hamon") {
+        listaParaEnviar = cartasHamon;
+    } else if (nomeDeck === "Deck Dragao Final") {
+        listaParaEnviar = cartasDragaoFinal;
+    } else if (nomeDeck === "Deck Agua") {
+        listaParaEnviar = cartasAgua;
+    } else if (nomeDeck === "Deck Sof") {
+        listaParaEnviar = cartasSof;
+    } else if (nomeDeck === "Deck Chatsi") {
+        listaParaEnviar = cartasChatsi;
+    } else if (nomeDeck === "Deck Bereshit") {
+        listaParaEnviar = cartasBereshit;
+    }
+
+    // Se a lista foi encontrada e tem cartas dentro...
+    if (listaParaEnviar && listaParaEnviar.length > 0) {
+        const ref = doc(db, "usuarios", id);
+        
+        try {
+            await updateDoc(ref, {
+                extraDeck: arrayUnion(...listaParaEnviar) // Envia as cartas para Conquistas
+            });
+            alert("Deck enviado com sucesso para o Extra Deck!");
+        } catch (error) {
+            console.error("Erro ao enviar:", error);
+            alert("Erro no Firebase. Veja o console.");
+        }
+    } else {
+        alert("Erro: Deck não encontrado! Digite exatamente 'Deck Uria' ou verifique se a lista 'cartasUria' existe no código.");
+    }
+};
+
+      // ===== WINDOW ORGANIZAR DECKS NO BANCO ===== //
+ window.organizarDecksNoBanco = async () => { // DESATIVA OU ATIVA PARA ORGANIZA O DECK NO FIREBASE 
+    if (!currentUid) return;
+
+    const userRef = doc(db, "usuarios", currentUid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return;
+    const dados = userSnap.data();
+
+    const deckAtual = dados.meuDeck || [];
+    const fusoesAtuais = dados.deckFusoes || [];
+
+     //Separa o que é carta normal e o que é fusão
+    const apenasNormais = deckAtual.filter(c => !c.fusao);
+    const apenasFusoesEncontradas = deckAtual.filter(c => c.fusao);
+
+    if (apenasFusoesEncontradas.length > 0) {
+         //Junta as fusões encontradas com as que já estavam no deck de fusões
+        const novoDeckFusoes = [...fusoesAtuais, ...apenasFusoesEncontradas];
+
+        try {
+            await updateDoc(userRef, {
+                meuDeck: apenasNormais,
+                deckFusoes: novoDeckFusoes
+            });
+            console.log("✅ Firebase Organizado! Fusões movidas para o array correto.");
+            
+             //Atualiza as variáveis locais para a tela atualizar
+            meuDeckArray = apenasNormais;
+            deckFusoesArray = novoDeckFusoes;
+            renderizarGrids();
+            
+            alert("Decks organizados no banco de dados com sucesso!");
+       } catch (e) {
+            //console.error("Erro ao organizar:", e);
+        }
+    } else {
+        console.log("O deck já estava organizado no Firebase.");
+    }
+};
+
+// =================== FUNÇÃO USER UID ======================== //
+let jaOrganizouNestaSessao = false;
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUid = user.uid;
+        
+        const authScreen = document.getElementById('auth-screen');
+        const gameScreen = document.getElementById('game-screen');
+        if (authScreen) authScreen.style.display = 'none';
+        if (gameScreen) gameScreen.style.display = 'flex';
+        
+        const userRef = doc(db, "usuarios", currentUid);
+        
+        // Garante a manutenção silenciosa antes do listener
+        const inicialSnap = await getDoc(userRef);
+        if (inicialSnap.exists()) {
+            if (!jaOrganizouNestaSessao) {
+                jaOrganizouNestaSessao = true;
+                if (typeof organizarDecksNoBanco === 'function') await organizarDecksNoBanco();
+                if (typeof sincronizarDadosDasCartas === 'function') await sincronizarDadosDasCartas();
+            }
+        }
+
+        // Listener em tempo real do Usuário
+        onSnapshot(userRef, (snap) => {
+            if (snap.exists()) {
+                const d = snap.data();
+                
+                const elNome = document.getElementById('display-nome');
+                const elPt = document.getElementById('val-pt');
+                const elCred = document.getElementById('val-cred');
+
+                if (elNome) elNome.innerText = (d.nome || "").toUpperCase();
+                if (elPt) elPt.innerText = Number.isFinite(Number(d.pt)) ? Number(d.pt) : 0;
+                if (elCred) elCred.innerText = d.credit ?? 0;
+                const perfilPt = document.getElementById("perfil-pt");
+                if (perfilPt) perfilPt.innerText = Number.isFinite(Number(d.pt)) ? Number(d.pt) : 0;
+                
+                meuDeckArray = d.meuDeck || [];
+                deckFusoesArray = d.deckFusoes || [];
+                extraDeckArray = d.extraDeck || [];
+
+                if (typeof renderizarGrids === 'function') renderizarGrids();
+
+                // 🔥 CONTROLE DE EXIBIÇÃO EXCLUSIVO DO ADMIN
+                const cardUria = document.getElementById("loja-deck-uria");
+                const boxCriarAviso = document.getElementById("admin-criar-aviso-box");
+                const btnAdminView = document.getElementById('btn-admin-view');
+
+                // Se d.admin for verdadeiro (true)
+                if (d.admin === true) {
+                    if (btnAdminView) btnAdminView.style.display = 'block';
+                    if (cardUria) cardUria.style.display = "block"; 
+                    if (boxCriarAviso) boxCriarAviso.style.display = "block"; // Exibe para Admin
+                    if (typeof carregarPainel === 'function') carregarPainel();
+                } else {
+                    // Se FOR USUÁRIO COMUM, OCULTA TUDO
+                    if (btnAdminView) btnAdminView.style.display = 'none';
+                    if (cardUria) cardUria.style.display = "none";
+                    if (boxCriarAviso) boxCriarAviso.style.display = "none"; // Oculta para Usuários
+                }
+            }
+        });
+
+    } else {
+        jaOrganizouNestaSessao = false;
+        const authScreen = document.getElementById('auth-screen');
+        const gameScreen = document.getElementById('game-screen');
+        if (authScreen) authScreen.style.display = 'flex';
+        if (gameScreen) gameScreen.style.display = 'none';
+    }
+});
+
+//=========== LÓGICA DO MURAL DE AVISOS+PAINEL ADMIN+ESCONDER DECKS DA LOJA (PERSISTENTE E EM TEMPO REAL) ==============//
+
+// Escuta os avisos salvos no Firestore em tempo real
+document.addEventListener('DOMContentLoaded', () => {
+    window.carregarAvisos();
+    monitorarNotificacoesAvisos();
+});
+
+window.carregarAvisos = function() {
+    if (typeof db === 'undefined') return;
+    
+    // Conecta na coleção "avisos" ordenando pelos mais recentes
+    const q = query(collection(db, "avisos"), orderBy("criadoEm", "desc"));
+    
+    onSnapshot(q, (snapshot) => {
+        const container = document.getElementById('lista-de-avisos');
+        if (!container) return;
+
+        if (snapshot.empty) {
+            container.innerHTML = `<p style="color: #888; font-style: italic;">Nenhum aviso publicado no momento.</p>`;
+            return;
+        }
+
+        container.innerHTML = '';
+        const adminBox = document.getElementById('admin-criar-aviso-box');
+        const eAdmin = (typeof isAdmin !== 'undefined' && isAdmin) || (adminBox && adminBox.style.display !== 'none');
+
+        snapshot.forEach((docSnap) => {
+            const aviso = docSnap.data();
+            const id = docSnap.id;
+
+            const card = document.createElement('div');
+            card.className = 'aviso-card';
+            card.style = 'background: #0a0f1a; border: 1px solid #ffcc00; border-radius: 10px; padding: 15px; text-align: left; margin-bottom: 15px; position: relative;';
+
+            let html = '';
+            
+            if (eAdmin) {
+                html += `<button onclick="deletarAviso('${id}')" style="position: absolute; top: 10px; right: 10px; background: #ff4d4d; color: white; border: none; border-radius: 5px; padding: 4px 8px; font-weight: bold; cursor: pointer; font-size: 0.8rem;">🗑️ Excluir</button>`;
+            }
+
+            if (aviso.titulo) {
+                html += `<h3 style="color: #ffcc00; margin-top: 0; margin-bottom: 5px; padding-right: 70px;">${aviso.titulo}</h3>`;
+            }
+
+            if (aviso.data) {
+                html += `<small style="color: #777; font-size: 0.75rem; display: block; margin-bottom: 10px;">Publicado em: ${aviso.data}</small>`;
+            }
+
+            if (aviso.texto) {
+                html += `<p style="color: #fff; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px; white-space: pre-line;">${aviso.texto}</p>`;
+            }
+
+            if (aviso.imagem) {
+                html += `<img src="${aviso.imagem}" alt="Imagem do Aviso" style="width: 100%; max-height: 350px; object-fit: contain; border-radius: 8px; border: 1px solid #333; background: #000;">`;
+            }
+
+            card.innerHTML = html;
+            container.appendChild(card);
+        });
+    });
+};
+
+window.publicarAviso = function() {
+    const tituloInput = document.getElementById('aviso-titulo-input');
+    const textoInput = document.getElementById('aviso-texto-input');
+    const fileInput = document.getElementById('aviso-imagem-input');
+
+    const titulo = tituloInput ? tituloInput.value.trim() : '';
+    const texto = textoInput ? textoInput.value.trim() : '';
+
+    if (!titulo && !texto) {
+        alert("Por favor, preencha ao menos o título ou o texto do aviso!");
+        return;
+    }
+
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            salvarNovoAviso(titulo, texto, e.target.result);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+    } else {
+        salvarNovoAviso(titulo, texto, null);
+    }
+};
+
+// === sauva novo aviso === //
+async function salvarNovoAviso(titulo, texto, imagem) {
+    try {
+        await addDoc(collection(db, "avisos"), {
+            titulo: titulo,
+            texto: texto,
+            imagem: imagem,
+            data: new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
+            criadoEm: serverTimestamp()
+        });
+        limparFormularioAviso();
+        alert("Aviso publicado para todos os duelistas!");
+    } catch (error) {
+        console.error("Erro ao publicar aviso:", error);
+        alert("Erro ao publicar aviso: " + error.message);
+    }
+}
+
+window.deletarAviso = async function(id) {
+    if (confirm("Tem certeza que deseja excluir este aviso para TODOS os jogadores?")) {
+        try {
+            await deleteDoc(doc(db, "avisos", id));
+        } catch (error) {
+            console.error("Erro ao deletar aviso:", error);
+            alert("Erro ao excluir aviso: " + error.message);
+        }
+    }
+};
+
+function limparFormularioAviso() {
+    if(document.getElementById('aviso-titulo-input')) document.getElementById('aviso-titulo-input').value = '';
+    if(document.getElementById('aviso-texto-input')) document.getElementById('aviso-texto-input').value = '';
+    if(document.getElementById('aviso-imagem-input')) document.getElementById('aviso-imagem-input').value = '';
+}
+
+// === Variável para guardar a última visualização do mural armazenada no navegador
+let ultimaVistoAvisos = localStorage.getItem('ultima_vez_visto_avisos') || 0;
+
+// === Listener em Tempo Real para Notificações
+function monitorarNotificacoesAvisos() {
+    if (typeof db === 'undefined') return;
+
+    const q = query(collection(db, "avisos"), orderBy("criadoEm", "desc"), limit(1));
+
+    onSnapshot(q, (snapshot) => {
+        const badge = document.getElementById('aviso-badge');
+        if (!badge) return;
+
+        if (!snapshot.empty) {
+            const ultimoAviso = snapshot.docs[0].data();
+            
+            // Converte o Timestamp do Firestore para Milissegundos
+            const dataUltimoAviso = ultimoAviso.criadoEm ? ultimoAviso.criadoEm.toMillis() : Date.now();
+
+            // Se o último aviso for MAIS RECENTE que a última leitura do usuário:
+            if (dataUltimoAviso > Number(ultimaVistoAvisos)) {
+                badge.style.display = 'inline-block'; // EXIBE A NOTIFICAÇÃO 🔴
+            } else {
+                badge.style.display = 'none'; // OCULTA SE JÁ VIU
+            }
+        } else {
+            badge.style.display = 'none';
+        }
+    });
+}
+
+// ==== Função para abrir a aba dos Avisos garantida no 1º clique logo após o login ==== //
+window.showAvisos = function() {
+    // 1. Esconde TODAS as áreas de tela do jogo por ID (Corrigido: 'home-msg' adicionado)
+    const telasParaEsconder = [
+        'home-msg',
+        'home-area', 
+        'loja-area', 
+        'deck-area', 
+        'perfil-area', 
+        'admin-area', 
+        'painel-admin', 
+        'duelo-area', 
+        'mercado-area', 
+        'inventario-area'
+    ];
+
+    telasParaEsconder.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.setProperty('display', 'none', 'important');
+    });
+
+    // 2. Esconde abas genéricas (garantindo que NÃO esconda o avisos-area)
+    const tabs = document.querySelectorAll('.tab-content, .aba-conteudo');
+    tabs.forEach(tab => {
+        if (tab.id !== 'avisos-area') {
+            tab.style.setProperty('display', 'none', 'important');
+        }
+    });
+
+    // 3. Exibe obrigatoriamente a aba de Avisos
+    const avisosArea = document.getElementById('avisos-area');
+    if (avisosArea) {
+        avisosArea.style.setProperty('display', 'block', 'important');
+    }
+
+    // 4. Atualiza estado da notificação (Seguro contra erros de ReferenceError)
+    const agora = Date.now();
+    localStorage.setItem('ultima_vez_visto_avisos', agora);
+    
+    try {
+        if (typeof window.ultimaVistoAvisos !== 'undefined') {
+            window.ultimaVistoAvisos = agora;
+        }
+    } catch (e) {
+        // Evita travar o script se a variável não estiver no window
+    }
+
+    const badge = document.getElementById('aviso-badge');
+    if (badge) badge.style.setProperty('display', 'none', 'important');
+
+    // 5. Garante a busca dos dados no banco imediatamente
+    if (typeof window.carregarAvisos === 'function') {
+        window.carregarAvisos();
+    }
+};
+
+// Aliases para manter compatibilidade com os botões
+window.abrirAbaAvisos = window.showAvisos;
+
+// --- FUNÇÃO PARA ENVIAR PEDIDO DE COMPRA POR E-MAIL --- //
+window.solicitarCompra = function(nomePacote, detalhePacote) {
+    // Tratamento para aceitar 1 ou 2 parâmetros
+    if (!detalhePacote) {
+        detalhePacote = nomePacote;
+        if (nomePacote.includes('1000')) nomePacote = 'BRONZE';
+        else if (nomePacote.includes('2500')) nomePacote = 'PRATA';
+        else if (nomePacote.includes('5000')) nomePacote = 'OURO';
+        else nomePacote = 'MEMBRO';
+    }
+
+    // 1. Pega o ID do Firebase Auth (currentUid)
+    let idDuelista = 'Não Identificado';
+    if (typeof currentUid !== 'undefined' && currentUid) {
+        idDuelista = currentUid;
+    } else if (typeof auth !== 'undefined' && auth.currentUser) {
+        idDuelista = auth.currentUser.uid;
+    }
+
+    // 2. Pega o nome do jogador exibido no jogo
+    const elNome = document.getElementById('display-nome');
+    const nomeJogador = elNome && elNome.innerText ? elNome.innerText : 'Duelista';
+
+    // 3. Confirmação para o jogador
+    const confirmacao = confirm(`Deseja solicitar o Pacote ${nomePacote}?\n\nValor: ${detalhePacote}\nJogador: ${nomeJogador}\nID: ${idDuelista}`);
+
+    if (confirmacao) {
+        fetch("https://formsubmit.co/ajax/limaerick017@gmail.com", {
+            method: "POST",
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                _subject: `NOVA SOLICITAÇÃO [PACOTE ${nomePacote}]: ${nomeJogador} (ID: ${idDuelista})`,
+                Nome_Jogador: nomeJogador,
+                ID_Duelista: idDuelista,
+                Nome_do_Pacote: nomePacote,
+                Detalhes_do_Pacote: detalhePacote,
+                Data: new Date().toLocaleString('pt-BR')
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert("Solicitação enviada com sucesso! O administrador processará seu pedido em breve.");
+        })
+        .catch(error => {
+            console.error("Erro ao enviar:", error);
+            alert("Ocorreu um erro ao enviar o pedido. Tente novamente.");
+        });
+    }
+};
+
+// ===== WINDOW COMPRAR CARTA INDIVIDUAL ===== //
+window.comprarCartaIndividual = async (moeda, preco, cartaObjeto) => {
+    if (!currentUid) return alert("Faça login primeiro!");
+
+    const userRef = doc(db, "usuarios", currentUid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
+    // Evita NaN e permite compras que deixem exatamente 0 PT.
+    const precoNumerico = Number(preco);
+    const saldoNumerico = Number(userData[moeda]);
+    if (!['pt', 'credit'].includes(moeda) || !Number.isFinite(precoNumerico) || precoNumerico < 0 ||
+        !Number.isFinite(saldoNumerico) || saldoNumerico < 0) {
+        alert('Preço ou saldo inválido. Verifique os dados da conta.');
+        return;
+    }
+
+
+    // 1. Verifica se o usuário tem saldo suficiente
+    if (saldoNumerico < precoNumerico) {
+        alert("Saldo insuficiente!");
+        return;
+    }
+
+    try {
+        // 2. Garante a estrutura correta de ATQ/DEF se existirem
+        const cartaParaSalvar = { ...cartaObjeto };
+        if (cartaParaSalvar.atq === undefined) delete cartaParaSalvar.atq;
+        if (cartaParaSalvar.def === undefined) delete cartaParaSalvar.def;
+
+        
+
+        // 3. Adiciona UMA NOVA CÓPIA ao Extra Deck (Conquistas).
+        // Não usa arrayUnion: ele ignora objetos idênticos e bloqueava novas cópias.
+        const extraDeckAtual = Array.isArray(userData.extraDeck) ? userData.extraDeck : [];
+        const novoExtraDeck = [...extraDeckAtual, cartaParaSalvar];
+
+        await updateDoc(userRef, {
+            [moeda]: saldoNumerico - precoNumerico,
+            extraDeck: novoExtraDeck
+        });
+
+        // Faz a nova cópia aparecer imediatamente na tela.
+        extraDeckArray = novoExtraDeck;
+
+        alert(`Compra realizada com sucesso! Uma nova cópia de "${cartaObjeto.nome || 'Selecionada'}" foi adicionada às suas conquistas.`);
+
+        // 4. Recarrega as grades locais imediatamente
+        if (typeof renderizarGrids === 'function') renderizarGrids(); 
+    } catch (error) {
+        console.error("Erro na compra da carta:", error);
+        alert("Erro ao processar a compra da carta.");
+    }
+};
+
+const precosCartasLoja = {
+  // ===== ALEXIS =====
+  "Cyber Blader 1.jpg":                { ouro: 420, prata: 4200 },
+  "Cyber Gymnast 1.jpg":               { ouro: 160,  prata: 1600 },
+  "Etoile Cyber 1.jpg":                { ouro: 350, prata: 3500 },
+  "Blade Skater 1.jpg":                { ouro: 140, prata: 1400 },
+  "Cavaleiro de Comando 1.jpg":        { ouro: 240, prata: 2400 },
+  "Negate Attack 1.jpg":               { ouro: 400,  prata: 4000 },
+  "Duplo da Rainha 1.jpg":             { ouro: 70,  prata: 700 },
+  "Cyber Prima.jpg":                   { ouro: 460, prata: 4600 },
+  "Princesa de Tsurugi 1.jpg":         { ouro: 180,  prata: 1800 },
+  "Senhora Guerreira do Deserto 1.jpg": { ouro: 350, prata: 3500 },
+  "Armadura Sakuretsu 1.jpg":          { ouro: 550,  prata: 5500 },
+  "Polimerização 1.jpg":               { ouro: 200,  prata: 2000 },
+  "Aconchegante Malévolo 1.jpg":       { ouro: 500,  prata: 5000 },
+  "Presente do Elfo Místico 1.jpg":    { ouro: 300,  prata: 3000 },
+  "Reforço do Exército 1.jpg":         { ouro: 500,  prata: 5000 },
+  "Tufão Espacial Místico 1.jpg":      { ouro: 500,  prata: 5000 },
+  "Tempestade Forte 1.jpg":            { ouro: 1000, prata: 10000 },
+  "Roubar 1.jpg":                      { ouro: 500, prata: 5000 },
+  "Recuperação por fusão 1.jpg":       { ouro: 400,  prata: 4000 },
+  "Pote da Ganância 1.jpg":            { ouro: 800, prata: 8000 },
+  "Mágico da Fé 1.jpg":                { ouro: 500,  prata: 5000 },
+  "Enterro prematuro 1.jpg":           { ouro: 600, prata: 6000 },
+  "Armadura de Ouro Raro 1.jpg":       { ouro: 400, prata: 4000 },
+  "Fusion Gate.jpg":                   { ouro: 700, prata: 7000 },
+
+  // ===== JADEN =====
+  "HERÓI Elemental Avian 1.jpg":       { ouro: 100, prata: 1000 },
+  "HERÓI Elemental Burstinatrix 1.jpg":{ ouro: 120, prata: 1200 },
+  "HERÓI Elemental Clayman 1.jpg":     { ouro: 80,  prata: 800 },
+  "HERÓI Elemental Bubbleman 1.jpg":   { ouro: 180, prata: 1800 },
+  "HERÓI Elemental Sparkman 1.jpg":    { ouro: 160, prata: 1600 },
+  "Wroughtweiler 1.jpg":               { ouro: 220, prata: 2200 },
+  "Rei do Pântano 1.jpg":              { ouro: 220, prata: 2200 },
+  "HERÓI Elemental Necroshade 1.jpg":  { ouro: 360, prata: 3600 },
+  "HERÓI Elemental Wildheart 1.jpg":   { ouro: 300, prata: 3000 },
+  "HERÓI Elemental Bladedge 1.jpg":    { ouro: 520, prata: 5200 },
+  "Fusão de Milagres 1.jpg":           { ouro: 600, prata: 6000 },
+  "E - Chamado de Emergência 1.jpg":   { ouro: 220,  prata: 2200 },
+  "O - Sobrealma 1.jpg":               { ouro: 400,  prata: 4000 },
+  "R - Justiça Justa 1.jpg":           { ouro: 120,  prata: 1200 },
+  "H - Coração Aquecido 1.jpg":        { ouro: 120,  prata: 1200 },
+  "Quinta Esperança 1.jpg":            { ouro: 220, prata: 2200 },
+  "Arranha-Céu 1.jpg":                 { ouro: 300, prata: 3000 },
+  "Caridade Graciosa 1.jpg":           { ouro: 700, prata: 7000 },
+  "Sinal do Herói 1.jpg":              { ouro: 150, prata: 1500 },
+  "Força Espelhada 1.jpg":             { ouro: 1000, prata: 10000 },
+  "Hero Barrier 1.jpg":                { ouro: 200,  prata: 2000 },
+  "HERÓI Elemental Electrum 1.jpg":    { ouro: 580, prata: 5800 },
+  "HERÓI Elemental Flame Wingman 1.jpg":{ ouro: 440, prata: 4400 },
+
+  // ===== JOEY =====
+  "Dragão Milena 1.jpg":               { ouro: 240, prata: 2400 },
+  "Espadachim Flamejante 1.jpg":       { ouro: 180, prata: 1800 },
+  "Red-Eyes Black Dragon 1.jpg":       { ouro: 240, prata: 2400 },
+  "Armadilha de Espinhos 1.jpg":       { ouro: 550,  prata: 5500 },
+  "Armored Lizard 1.jpg":              { ouro: 150, prata: 1500 },
+  "Axe Raider 1.jpg":                  { ouro: 170, prata: 1700 },
+  "Bebê Dragão 1.jpg":                 { ouro: 120, prata: 1200 },
+  "Besta Espada Louca 1.jpg":          { ouro: 280, prata: 2800 },
+  "Destroyer Golem 1.jpg":             { ouro: 150, prata: 1500 },
+  "Escudo e Espada 1.jpg":             { ouro: 150, prata: 1500 },
+  "Flame Manipulator 1.jpg":           { ouro: 90,  prata: 900 },
+  "Força de Ataque Goblin 1.jpg":      { ouro: 460, prata: 4600 },
+  "Guardian of the Labyrinth 1.jpg":   { ouro: 100, prata: 1000 },
+  "Imitador 1.jpg":                    { ouro: 700, prata: 7000 },
+  "Kojikocy 1.jpg":                    { ouro: 150, prata: 1500 },
+  "Ladrão de túmulos 1.jpg":           { ouro: 500,  prata: 5000 },
+  "Mago do Tempo 1.jpg":               { ouro: 180, prata: 1800 },
+  "Máquina do Tempo 1.jpg":            { ouro: 500, prata: 5000 },
+  "Masaki the Legendary Swordsman 1.jpg": { ouro: 110, prata: 1100 },
+  "Protector of the Throne 1.jpg":     { ouro: 80,  prata: 800 },
+  "Tiger Axe 1.jpg":                   { ouro: 130, prata: 1300 },
+  "Estandarte da Coragem 1.jpg":       { ouro: 130,  prata: 1300 },
+  "Chifre do Unicórnio 1.jpg":         { ouro: 500,  prata: 5000 },
+
+// ===== URIA DECK =====
+  "Uria, Senhor das Chamas Ardentes 1.jpg":          { ouro: 1200, prata: 12000 },
+  "Thestalos, o Monarca da Tempestade de Fogo 1.jpg": { ouro: 480, prata: 4800 },
+  "Dragão de Magma 1.jpg":                           { ouro: 320, prata: 3200 },
+  "Dragão Desmascarado 1.jpg":                       { ouro: 280, prata: 2800 },
+  "Dragão Desmascarado 2.jpg":                       { ouro: 280, prata: 2800 },
+  "Dragão Desmascarado 3.jpg":                       { ouro: 280, prata: 2800 },
+  "Alfândega Imperial 1.jpg":                        { ouro: 220,  prata: 2200 },
+  "Abertura dos Portões do Espírito 1.jpg":          { ouro: 200, prata: 2000 },
+  "Abertura dos Portões do Espírito 2.jpg":          { ouro: 200, prata: 2000 },
+  "Abertura dos Portões do Espírito 3.jpg":          { ouro: 200, prata: 2000 },
+  "Lodo Metálico Refletivo 1.jpg":                   { ouro: 600, prata: 6000 },
+  "Lodo Metálico Refletivo 2.jpg":                   { ouro: 600, prata: 6000 },
+  "Lodo Metálico Refletivo 3.jpg":                   { ouro: 600, prata: 6000 },
+  "Monte do Criador Aprisionado 1.jpg":              { ouro: 350, prata: 3500 },
+  "Monte do Criador Aprisionado 2.jpg":              { ouro: 350, prata: 3500 },
+  "Monte do Criador Aprisionado 3.jpg":              { ouro: 350, prata: 3500 },
+  "Padrão da Estátua da Angústia 1.jpg":             { ouro: 500, prata: 5000 },
+  "Padrão da Estátua da Angústia 2.jpg":             { ouro: 500, prata: 5000 },
+  "Padrão da Estátua da Angústia 3.jpg":             { ouro: 500, prata: 5000 },
+  "Solemn Wishes 1.jpg":                             { ouro: 180,  prata: 1800 },
+  "Solemn Wishes 2.jpg":                             { ouro: 180,  prata: 1800 },
+  "Solemn Wishes 3.jpg":                             { ouro: 180,  prata: 1800 },
+  "Repressão 1.jpg":                                 { ouro: 800, prata: 8000 },
+  "Repressão 2.jpg":                                 { ouro: 800, prata: 8000 },
+  "Vaso Mágico 1.jpg":                               { ouro: 130,  prata: 1300 },
+  "Vaso Mágico 2.jpg":                               { ouro: 130,  prata: 1300 },
+  "Paraíso Caído das Bestas Sagradas 1.jpg":         { ouro: 200, prata: 2000 },
+  "Paraíso Caído das Bestas Sagradas 2.jpg":         { ouro: 200, prata: 2000 },
+  "Paraíso Caído das Bestas Sagradas 3.jpg":         { ouro: 200, prata: 2000 },
+  "Hiper Chama 1.jpg":                               { ouro: 150, prata: 1500 },
+  "Hiper Chama 2.jpg":                               { ouro: 150, prata: 1500 },
+  "Hiper Chama 3.jpg":                               { ouro: 150, prata: 1500 },
+  "Terraformação 1.jpg":                             { ouro: 120, prata: 1200 },
+  "Terraformação 2.jpg":                             { ouro: 120, prata: 1200 },
+  "Ligação gravitacional 1.jpg":                     { ouro: 200, prata: 2000 },
+  "Ligação gravitacional 2.jpg":                     { ouro: 200, prata: 2000 },
+  "Ligação gravitacional 3.jpg":                     { ouro: 200, prata: 2000 },
+  "Encarnação de Apófis 1.jpg":                      { ouro: 320, prata: 3200 },
+  "Encarnação de Apófis 2.jpg":                      { ouro: 320, prata: 3200 },
+  "Encarnação de Apófis 3.jpg":                      { ouro: 320, prata: 3200 },
+  "Slime do Deus Egípcio 1.jpg":                     { ouro: 700, prata: 7000 },
+  "Slime do Deus Egípcio 2.jpg":                     { ouro: 700, prata: 7000 },
+
+// ===== HAMON DECK (NOVAS CARTAS) =====
+  "Hamon, o Senhor do Trovão Impactante 1.jpg":      { ouro: 1200, prata: 12000 },
+  "Primeiro dos Senhores dos Dragões 1.jpg":         { ouro: 1100, prata: 11000 },
+  "Primeiro dos Senhores dos Dragões 2.jpg":         { ouro: 1100, prata: 11000 },
+  "Anjo Brilhante 1.jpg":                            { ouro: 280, prata: 2800 },
+  "Anjo Brilhante 2.jpg":                            { ouro: 280, prata: 2800 },
+  "Anjo Brilhante 3.jpg":                            { ouro: 280, prata: 2800 },
+  "Marshmallon 1.jpg":                               { ouro: 1000, prata: 10000 },
+  "Esquadrão de Suprimentos 1.jpg":                  { ouro: 200, prata: 2000 },
+  "Esquadrão de Suprimentos 2.jpg":                  { ouro: 200, prata: 2000 },
+  "Esquadrão de Suprimentos 3.jpg":                  { ouro: 200, prata: 2000 },
+  "Ruína Generalizada 1.jpg":                        { ouro: 500,  prata: 5000 },
+  "Ruína Generalizada 2.jpg":                        { ouro: 500,  prata: 5000 },
+  "Ruína Generalizada 3.jpg":                        { ouro: 500,  prata: 5000 },
+  "Espírito da Harpa 1.jpg":                         { ouro: 80,  prata: 800 },
+  "Espírito da Harpa 2.jpg":                         { ouro: 80,  prata: 800 },
+  "Espírito da Harpa 3.jpg":                         { ouro: 80,  prata: 800 },
+  "Fusão Futura 1.jpg":                              { ouro: 800, prata: 8000 },
+  "Fusão Futura 2.jpg":                              { ouro: 800, prata: 8000 },
+  "Limite de Nível - Área B 1.jpg":                  { ouro: 200, prata: 2000 },
+  "Limite de Nível - Área B 2.jpg":                  { ouro: 200, prata: 2000 },
+  "Limite de Nível - Área B 3.jpg":                  { ouro: 200, prata: 2000 },
+  "Dragão Alexandrita 1.jpg":                        { ouro: 200, prata: 2000 },
+  "Zaborg, o Rei do Trovão 1.jpg":                   { ouro: 480, prata: 4800 },
+  "Ookazi 1.jpg":                                    { ouro: 100,  prata: 1000 },
+  "Ookazi 2.jpg":                                    { ouro: 100,  prata: 1000 },
+  "Estandarte da Coragem 2.jpg":                     { ouro: 100,  prata: 1000 },
+  "Estandarte da Coragem 3.jpg":                     { ouro: 100,  prata: 1000 },
+
+// ===== DRAGÃO FINAL DECK (NOVAS CARTAS) =====
+  "Dragão Cibernético Final 1.jpg":                  { ouro: 800, prata: 8000 },
+  "Dragão Gêmeo Cibernético 1.jpg":                  { ouro: 520, prata: 5200 },
+  "Dragão Cibernético 1.jpg":                        { ouro: 420, prata: 4200 },
+  "Dragão Cibernético 2.jpg":                        { ouro: 420, prata: 4200 },
+  "Dragão Cibernético 3.jpg":                        { ouro: 420, prata: 4200 },
+  "Proto-Dragão Cibernético 1.jpg":                  { ouro: 110,  prata: 1100 },
+  "Proto-Dragão Cibernético 2.jpg":                  { ouro: 110,  prata: 1100 },
+  "Proto-Dragão Cibernético 3.jpg":                  { ouro: 110,  prata: 1100 },
+  "Dragão Cibernético Laser 1.jpg":                  { ouro: 480, prata: 4800 },
+  "Dragão Cibernético Laser 2.jpg":                  { ouro: 480, prata: 4800 },
+  "Limite de reflexão 1.jpg":                        { ouro: 400, prata: 4000 },
+  "Limite de reflexão 2.jpg":                        { ouro: 400, prata: 4000 },
+  "Ciber Fênix 1.jpg":                               { ouro: 220, prata: 2200 },
+  "Ciber Fênix 2.jpg":                               { ouro: 220, prata: 2200 },
+  "Ciber Fênix 3.jpg":                               { ouro: 220, prata: 2200 },
+  "Cyber Barrier Dragon 1.jpg":                      { ouro: 180, prata: 1800 },
+  "A Luz - Fusão Hexagonal Selada 1.jpg":            { ouro: 200, prata: 2000 },
+  "A Luz - Fusão Hexagonal Selada 2.jpg":            { ouro: 200, prata: 2000 },
+  "Jinzo 1.jpg":                                     { ouro: 720, prata: 7200 },
+  "Ligação de energia 1.jpg":                        { ouro: 280, prata: 2800 },
+  "Ligação de energia 2.jpg":                        { ouro: 280, prata: 2800 },
+  "Unidade Geradora de Fótons 1.jpg":                { ouro: 120,  prata: 1200 },
+  "Unidade Geradora de Fótons 2.jpg":                { ouro: 120,  prata: 1200 },
+  "Zona Cibernética 1.jpg":                          { ouro: 130, prata: 1300 },
+  "Zona Cibernética 2.jpg":                          { ouro: 130, prata: 1300 },
+  "Desfusão 1.jpg":                                  { ouro: 500, prata: 5000 },
+  "Explosão Evolutiva 1.jpg":                        { ouro: 120, prata: 1200 },
+  "Limiter Removal 1.jpg":                           { ouro: 130, prata: 1300 },
+  "Buraco escuro 1.jpg":                             { ouro: 1000, prata: 10000 },
+  "Unidade refletora de ataque 1.jpg":               { ouro: 120, prata: 1200 },
+  "Guarda Sombra Cibernético 1.jpg":                 { ouro: 250, prata: 2500 },
+  "Chamado dos Assombrados 2.jpg":                   { ouro: 650, prata: 6500 },
+
+  // ===== DECK ÁGUA (NOVAS CARTAS) =====
+  "Aglomerado de Dragões de Água 1.jpg":             { ouro: 560, prata: 5600 },
+
+  // ===== DECK DEUSES EGÍPCIOS (NOVAS CARTAS) =====
+  "Sof, o Dragao Celestial Da Luz A-97.1.png":       { ouro: 999999, prata: 999999 },
+  "Chatsi, o Intercessor Celestial A-98.1.png":      { ouro: 999999, prata: 999999 },
+  "Bereshit, o Dragao Celestial do Ceus A-99.1.png": { ouro: 999999, prata: 999999 }
+};
+
+// ===== FUNÇÃO 2: ABRIR E RENDERIZAR TODAS AS CARTAS DA LOJA COM PREÇOS DA SUA LISTA CUSTOMIZADA ===== //
+document.getElementById('btn-cartas-submenu').addEventListener('click', () => {
+    let listaTodas = [];
+    
+    if (typeof window.sincronizarDadosDasCartas !== 'undefined') {
+        const scriptStr = window.sincronizarDadosDasCartas.toString();
+        const match = scriptStr.match(/const\s+listas\s*=\s*\[([\s\S]*?)\];/);
+        if (match) {
+            try {
+                let extracao = match[1].replace(/\.\.\.\(typeof\s+\w+\s*!==\s*'undefined'\s*\?\s*(\w+)\s*:\s*\[\]\)/g, '$1');
+                let nomesDecks = extracao.split(',').map(x => x.trim()).filter(x => x);
+                nomesDecks.forEach(nome => {
+                    if (typeof window[nome] !== 'undefined') listaTodas.push(...window[nome]);
+                    else if (typeof globalThis[nome] !== 'undefined') listaTodas.push(...globalThis[nome]);
+                });
+            } catch(e){}
+        }
+    }
+    
+    if (listaTodas.length === 0) {
+        listaTodas = [
+            ...(typeof cartasJoey !== 'undefined' ? cartasJoey : []),
+            ...(typeof cartasJaden !== 'undefined' ? cartasJaden : []),
+            ...(typeof cartasAlexis !== 'undefined' ? cartasAlexis : []),
+            ...(typeof cartasUria !== 'undefined' ? cartasUria : []),
+            ...(typeof cartasHamon !== 'undefined' ? cartasHamon : []),
+            ...(typeof cartasDragaoFinal !== 'undefined' ? cartasDragaoFinal : []),
+            ...(typeof cartasAgua !== 'undefined' ? cartasAgua : []),
+            ...(typeof cartasSof !== 'undefined' ? cartasSof : []),
+            ...(typeof cartasChatsi !== 'undefined' ? cartasChatsi : []),
+            ...(typeof cartasBereshit !== 'undefined' ? cartasBereshit : [])
+        ];
+    }
+    
+    const nomesBaseVistos = new Set();
+    
+    // Filtra duplicatas e remove permanentemente as banidas da aba geral
+    const listaSemDuplicatas = listaTodas.filter(carta => {
+        if (!carta || !carta.img) return false;
+        if (typeof imagensParaRemover !== 'undefined' && imagensParaRemover.includes(carta.img)) return false;
+        
+        const nomeBase = carta.img.toLowerCase().replace(/\s+\d+(?=\.[a-z]+$)/, '');
+        if (nomesBaseVistos.has(nomeBase)) return false;
+        
+        nomesBaseVistos.add(nomeBase);
+        return true;
+    });
+    
+    const container = document.getElementById('cartas-container');
+    const modalTitulo = document.querySelector('#modal-deck h2');
+    if (modalTitulo) modalTitulo.innerText = 'TODAS AS CARTAS DA LOJA';
+    
+    if (container) {
+        container.innerHTML = '';
+        listaSemDuplicatas.forEach(carta => {
+            if(carta && carta.img) {
+                
+                // Valores padrão caso a carta não esteja mapeada na lista por algum motivo
+                let precoOuroFinal = 50;  
+                let precoPrataFinal = 200; 
+
+                // 🔍 ASSOCIAÇÃO DIRETA: Busca os preços originais na sua tabela baseando-se no exato nome da imagem
+                if (typeof precosCartasLoja !== 'undefined' && precosCartasLoja[carta.img]) {
+                    precoOuroFinal = precosCartasLoja[carta.img].ouro;
+                    precoPrataFinal = precosCartasLoja[carta.img].prata;
+                } else {
+                    // Fallback de segurança baseado no ATQ caso a carta não esteja na tabela
+                    if (carta.atq !== undefined) {
+                        precoOuroFinal = Math.max(30, Math.floor(carta.atkq / 10));
+                        precoPrataFinal = Math.max(100, Math.floor(carta.atq * 0.4));
+                    }
+                }
+
+                const div = document.createElement('div');
+                div.className = 'carta-item';
+                
+                // Injeta os valores recuperados da lista nos atributos de dados do elemento
+                div.setAttribute('data-ouro', precoOuroFinal);
+                div.setAttribute('data-prata', precoPrataFinal);
+
+                div.innerHTML = `
+                    <img src='${carta.img}' onerror="this.src='https://via.placeholder.com/150?text=Erro'">
+                    <div class="carta-menu-precos" style="display: flex; gap: 4px; margin-top: 5px; justify-content: center; width: 100%;">
+                        <button class="btn-moeda-ouro" style="background: #ffd700; color: #000; border: none; padding: 4px 6px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <img src="moeda_de_ouro.png" alt="Ouro" style="width: 14px; height: 14px; object-fit: contain;">
+                            <span>${precoOuroFinal}</span>
+                        </button>
+                        <button class="btn-moeda-prata" style="background: #c0c0c0; color: #000; border: none; padding: 4px 6px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <img src="moeda_de_prata.png" alt="Prata" style="width: 14px; height: 14px; object-fit: contain;">
+                            <span>${precoPrataFinal}</span>
+                        </button>
+                    </div>
+                `;
+                
+                // Clique na imagem abre os detalhes
+                div.querySelector('img').addEventListener('click', () => {
+                    if (typeof window.mostrarDetalheGeral === 'function') {
+                        window.mostrarDetalheGeral(carta.img, 'TODAS AS CARTAS DA LOJA');
+                    } else if (typeof mostrarDetalheGeral === 'function') {
+                        mostrarDetalheGeral(carta.img, 'TODAS AS CARTAS DA LOJA');
+                    }
+                });
+
+                // Botão de compra por OURO repassa o valor isolado da carta
+                div.querySelector('.btn-moeda-ouro').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const valorAtualOuro = Number(div.getAttribute('data-ouro'));
+                    window.comprarCartaIndividual('pt', valorAtualOuro, carta);
+                });
+
+                // Botão de compra por PRATA repassa o valor isolado da carta
+                div.querySelector('.btn-moeda-prata').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const valorAtualPrata = Number(div.getAttribute('data-prata'));
+                    window.comprarCartaIndividual('credit', valorAtualPrata, carta);
+                });
+                
+                container.appendChild(div);
+            }
+        });
+    }
+    
+    const modalDeck = document.getElementById('modal-deck');
+    if (modalDeck) modalDeck.style.display = 'block';
+});
+
+    </script>
+</body>
+</html>
