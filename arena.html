@@ -3264,7 +3264,7 @@ window.tocarAtaqueDragaoSol = function () {
         [`field.${alvoUidLagarto}.monstros`]: monstros,
         [`field.${alvoUidLagarto}.gy`]: gy,
         [`players.${alvoUidLagarto}.gy`]: gy,
-        'estado.somOnlineEvento': somEvento,
+        'estado.lagartoEspadaSomEvento': somEvento,
         'estado.lagartoEspadaAviso': null
       });
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'O monstro'} foi destruído pelo efeito de Lagarto de Espada!`);
@@ -3351,7 +3351,7 @@ window.tocarAtaqueDragaoSol = function () {
   // Som de destruição sincronizado: cada cliente toca uma vez ao receber o mesmo ID.
   onSnapshot(refSalaLagarto(), snap => {
     if (!snap.exists()) return;
-    const evento = snap.data()?.estado?.somOnlineEvento;
+    const evento = snap.data()?.estado?.lagartoEspadaSomEvento;
     if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 10000) return;
     if (eventosSomVistos.has(evento.id)) return;
     eventosSomVistos.add(evento.id);
@@ -3639,6 +3639,7 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
 
   window.salaData = sala;
   sincronizarAvisoFilhoteDragaoFogo(sala.estado?.filhoteDragaoFogoResolucao);
+  sincronizarAvisoDragaoRenascido(sala.estado?.dragaoRenascidoChamasResolucao);
   // AVISO DIRETO NO SNAPSHOT PRINCIPAL: sincroniza a armadilha em ambos os clientes,
   // sem depender do listener interno do sistema Ira do Rei Dragão.
   try {
@@ -3722,6 +3723,54 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
     console.error("[Filhote Dragão Fogo] Erro no monitor do Cemitério:", erroMonitorFilhote);
   }
   
+  // MONITOR DO DRAGÃO RENASCIDO DAS CHAMAS: detecta a entrada de outro
+  // monstro FOGO de Tributo no Cemitério enquanto o Dragão Renascido já está lá.
+  try {
+    const normRenascidoMonitor = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const gyRenascidoMonitor = field[meuUid]?.gy || [];
+    const nomeRenascido = normRenascidoMonitor("Dragão Renascido das Chamas");
+    const temRenascidoNoGy = gyRenascidoMonitor.some(c => c && normRenascidoMonitor(c.nome) === nomeRenascido);
+    const nvRenascidoMonitor = c => {
+      const v = c?.nv ?? c?.NV ?? c?.nivel ?? c?.nivelMonstro;
+      const m = String(v ?? "").match(/\d+/);
+      return m ? Number(m[0]) : NaN;
+    };
+    const ehFogoTributoMonitor = c => {
+      if (!c || normRenascidoMonitor(c.nome) === nomeRenascido) return false;
+      const atributo = normRenascidoMonitor([c.atributo,c.attribute,c.elemento].filter(Boolean).join(" "));
+      const tipo = normRenascidoMonitor([c.tipo,c.tipoMonstro,c.subtipo,c.categoria,c.tipoCarta].filter(Boolean).join(" "));
+      const nv = nvRenascidoMonitor(c);
+      return /fogo|fire/.test(atributo) && Number.isFinite(nv) && nv >= 5 &&
+        (/tributo|tribute/.test(tipo) || nv >= 5);
+    };
+    const assinaturaRenascido = gyRenascidoMonitor.map((c,i) => c ? `${String(c.id || c.uid || c.instanceId || c.img || c.nome)}#${i}` : "").filter(Boolean).join("|");
+    if (!window.__dragaoRenascidoGyMonitorInicializado) {
+      window.__dragaoRenascidoGyMonitorInicializado = true;
+      window.__dragaoRenascidoGyAssinatura = assinaturaRenascido;
+    } else if (assinaturaRenascido !== window.__dragaoRenascidoGyAssinatura) {
+      const anterior = window.__dragaoRenascidoGyAssinatura || "";
+      window.__dragaoRenascidoGyAssinatura = assinaturaRenascido;
+      const idsAnteriores = new Set(anterior.split("|").filter(Boolean).map(x => x.slice(0, x.lastIndexOf("#"))));
+      const novaCartaFogoTributo = gyRenascidoMonitor.find(c => c && ehFogoTributoMonitor(c) &&
+        !idsAnteriores.has(String(c.id || c.uid || c.instanceId || c.img || c.nome)));
+      if (temRenascidoNoGy && novaCartaFogoTributo && !window.__dragaoRenascidoEfeitoEmAndamento) {
+        // Confirma que o monstro de Tributo entrou no GY após uma atualização de campo;
+        // o efeito é resolvido no navegador do dono do Cemitério.
+        window.__dragaoRenascidoEfeitoEmAndamento = true;
+        Promise.resolve().then(async () => {
+          const oponenteUidRenascido = Object.keys(players).find(uid => uid !== meuUid);
+          const campoOponenteRenascido = field[oponenteUidRenascido]?.monstros || [];
+          const nomeNormalizadoAlvo = normRenascidoMonitor(novaCartaFogoTributo.nome);
+          const aindaNoCampoOponente = campoOponenteRenascido.some(c => c && normRenascidoMonitor(c.nome) === nomeNormalizadoAlvo);
+          if (!aindaNoCampoOponente) await window.ativarEfeitoDragaoRenascidoDasChamas?.(gyRenascidoMonitor.find(c => c && normRenascidoMonitor(c.nome) === nomeRenascido));
+        }).catch(err => console.error("[Dragão Renascido das Chamas] Monitor do Cemitério:", err))
+          .finally(() => { window.__dragaoRenascidoEfeitoEmAndamento = false; });
+      }
+    }
+  } catch (erroMonitorRenascido) {
+    console.error("[Dragão Renascido das Chamas] Erro no monitor do Cemitério:", erroMonitorRenascido);
+  }
+
   // ⚡ GATILHO DO CAVALEIRO DE COMANDO: RECALCULA O ATQ EM TEMPO REAL ANTES DE RENDERIZAR
   if (typeof window.aplicarEfeitoCavaleiroDeComando === "function") {
     // Passa o campo e o teu UID
@@ -6775,6 +6824,128 @@ function sincronizarAvisoFilhoteDragaoFogo(resolucao) {
   }
   aviso.innerHTML = '<strong style="color:#ff7777">🐉 Efeito de monstro ativado</strong><div style="font-size:13px;margin-top:5px">O efeito do Filhote do Dragão de Fogo está sendo resolvido. Seus monstros não podem atacar até a resolução terminar.</div>';
 }
+
+
+
+// ================= EFEITO: DRAGÃO RENASCIDO DAS CHAMAS =================
+// Quando outro monstro FOGO de Tributo é destruído pelo oponente e enviado
+// ao Cemitério, permite Invocar Especialmente esta carta do próprio Cemitério.
+function normalizarDragaoRenascido(v) {
+  return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function sincronizarAvisoDragaoRenascido(resolucao) {
+  const idAviso = 'aviso-dragao-renascido-chamas-oponente';
+  let aviso = document.getElementById(idAviso);
+  const uidLocal = String(window.userUid || meuUid || '');
+  if (!resolucao?.id || String(resolucao.donoUid) === uidLocal) { aviso?.remove(); return; }
+  if (!aviso) {
+    aviso = document.createElement('div');
+    aviso.id = idAviso;
+    aviso.setAttribute('role', 'alert');
+    aviso.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000019;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:92vw;box-shadow:0 0 20px #f003;font-family:Arial,sans-serif;pointer-events:none;';
+    document.body.appendChild(aviso);
+  }
+  aviso.innerHTML = '<strong style="color:#ff7777">🔥 Efeito de monstro ativado</strong><div style="font-size:13px;margin-top:5px">O efeito do Dragão Renascido das Chamas está sendo resolvido. Seus monstros não podem atacar até a resolução terminar.</div>';
+}
+async function ativarEfeitoDragaoRenascidoDasChamas(cartaNoGy) {
+  const NOME = 'Dragão Renascido das Chamas';
+  if (!cartaNoGy || normalizarDragaoRenascido(cartaNoGy.nome) !== normalizarDragaoRenascido(NOME)) return;
+  const ref = doc(db, 'salas', salaId);
+  const id = `dragao_renascido_chamas_${meuUid}_${Date.now()}`;
+  try {
+    let snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    let salaAtual = snap.data();
+    const campo = salaAtual.field?.[meuUid] || {};
+    const gy = [...(campo.gy || [])];
+    const idxGy = gy.findIndex(c => c && normalizarDragaoRenascido(c.nome) === normalizarDragaoRenascido(NOME));
+    if (idxGy < 0) return;
+    if ((campo.monstros || []).filter(Boolean).length >= 5) {
+      avisoJogo('Dragão Renascido das Chamas: não há espaço livre na Zona de Monstros.');
+      return;
+    }
+    const turnoAtual = salaAtual.estado?.turnoNumero ?? salaAtual.estado?.turno ?? 1;
+    const marca = salaAtual.players?.[meuUid]?.dragaoRenascidoChamasUltimoTurno;
+    if (String(marca) === String(turnoAtual)) return;
+
+    await updateDoc(ref, {'estado.dragaoRenascidoChamasResolucao': {
+      id, donoUid: meuUid, iniciadoEm: Date.now(),
+      mensagem: 'O efeito do Dragão Renascido das Chamas está sendo resolvido. Os ataques estão bloqueados.'
+    }});
+
+    const escolhido = await new Promise(resolve => {
+      const antigo = document.getElementById('modal-dragao-renascido-chamas');
+      if (antigo) antigo.remove();
+      const modal = document.createElement('div');
+      modal.id = 'modal-dragao-renascido-chamas';
+      Object.assign(modal.style, {position:'fixed',inset:'0',zIndex:'100001',background:'rgba(0,0,0,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:'14px'});
+      const painel = document.createElement('div');
+      Object.assign(painel.style, {width:'min(520px,96vw)',maxHeight:'86vh',overflowY:'auto',background:'#111820',color:'white',border:'2px solid #f0a52b',borderRadius:'14px',padding:'18px',boxShadow:'0 0 28px rgba(240,165,43,.3)'});
+      const titulo = document.createElement('h2');
+      titulo.textContent = NOME;
+      titulo.style.cssText = 'margin:0 0 8px;text-align:center;color:#ffd16b';
+      const instrucao = document.createElement('p');
+      instrucao.textContent = 'Deseja Invocar Especialmente o Dragão Renascido das Chamas do seu Cemitério em Posição de Ataque?';
+      instrucao.style.cssText = 'text-align:center;margin:0 0 14px';
+      const grade = document.createElement('div');
+      Object.assign(grade.style,{display:'flex',justifyContent:'center',gap:'14px',flexWrap:'wrap'});
+      const terminar = v => { modal.remove(); resolve(v); };
+      const botao = document.createElement('button');
+      Object.assign(botao.style,{cursor:'pointer',background:'#202c36',color:'white',border:'1px solid #c58a25',borderRadius:'9px',padding:'9px',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'});
+      const img = document.createElement('img');
+      img.src = cartaNoGy.img || 'versodacartayugioh.jpg';
+      img.alt = NOME;
+      img.style.cssText = 'width:90px;height:130px;object-fit:cover;border-radius:4px';
+      const nome = document.createElement('span');
+      nome.textContent = NOME;
+      nome.style.cssText = 'font-size:12px;font-weight:bold;text-align:center';
+      botao.append(img,nome);
+      botao.onclick = () => terminar(true);
+      grade.appendChild(botao);
+      const cancelar = document.createElement('button');
+      cancelar.textContent = 'Não ativar';
+      cancelar.style.cssText = 'display:block;margin:14px auto 0;padding:8px 20px;cursor:pointer';
+      cancelar.onclick = () => terminar(false);
+      painel.append(titulo,instrucao,grade,cancelar);
+      modal.appendChild(painel);
+      document.body.appendChild(modal);
+    });
+    if (!escolhido) return;
+
+    snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    salaAtual = snap.data();
+    const campoAtual = salaAtual.field?.[meuUid] || {};
+    const monstros = [...(campoAtual.monstros || [])];
+    const gyAtual = [...(campoAtual.gy || [])];
+    const idxAtual = gyAtual.findIndex(c => c && normalizarDragaoRenascido(c.nome) === normalizarDragaoRenascido(NOME));
+    const slotLivre = monstros.findIndex(c => !c);
+    if (idxAtual < 0 || slotLivre < 0) {
+      avisoJogo('Dragão Renascido das Chamas: a carta não está mais no Cemitério ou não há espaço no campo.');
+      return;
+    }
+    const turnoFinal = salaAtual.estado?.turnoNumero ?? salaAtual.estado?.turno ?? 1;
+    const [cartaInvocada] = gyAtual.splice(idxAtual,1);
+    monstros[slotLivre] = {...cartaInvocada, posicao:'atq', face:'up', jaAtacou:false, jaMudouPosicao:false, monstroInvocadoNoTurno:true};
+    await updateDoc(ref, {
+      [`field.${meuUid}.gy`]: gyAtual,
+      [`field.${meuUid}.monstros`]: monstros,
+      [`players.${meuUid}.dragaoRenascidoChamasUltimoTurno`]: turnoFinal
+    });
+    avisoJogo('🔥 Dragão Renascido das Chamas foi Invocado Especialmente em Posição de Ataque!');
+  } catch (erro) {
+    console.error('[Dragão Renascido das Chamas] Falha ao resolver efeito:', erro);
+    throw erro;
+  } finally {
+    try {
+      const fim = await getDoc(ref);
+      if (fim.data()?.estado?.dragaoRenascidoChamasResolucao?.id === id) {
+        await updateDoc(ref, {'estado.dragaoRenascidoChamasResolucao': null});
+      }
+    } catch (erroLimpeza) { console.warn('[Dragão Renascido das Chamas] Não foi possível liberar a resolução:', erroLimpeza); }
+  }
+}
+window.ativarEfeitoDragaoRenascidoDasChamas = ativarEfeitoDragaoRenascidoDasChamas;
 
 
 async function enviarMonstroParaGY(monstro, slotForcado = null, motivo = null) {
