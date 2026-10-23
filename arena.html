@@ -3047,6 +3047,368 @@ window.tocarAtaqueDragaoSol = function () {
 
 };
 
+/* =====================================================================
+   🦎 EFEITO ONLINE — LAGARTO DE ESPADA
+   Ao ser Invocado com a face para cima em posição de Ataque, seu controlador
+   pode destruir 1 monstro em Posição de Defesa no campo do oponente.
+   O evento de som é publicado na sala para os dois clientes online.
+   ===================================================================== */
+(() => {
+  if (window.__lagartoEspadaSistemaInstalado) return;
+  window.__lagartoEspadaSistemaInstalado = true;
+
+  const normalizarNomeLagarto = valor => String(valor || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const estaEmDefesaLagarto = carta => !!carta &&
+    (String(carta.posicao || carta.pos || '').toLowerCase() === 'def');
+  const estaFaceUpLagarto = carta => !!carta &&
+    String(carta.face || 'up').toLowerCase() !== 'down';
+  const uidLocalLagarto = () => String(window.userUid || meuUid || '');
+  const refSalaLagarto = () => doc(db, 'salas', salaId);
+  const eventosGatilhoVistos = window.__lagartoEspadaGatilhosVistos || (window.__lagartoEspadaGatilhosVistos = new Set());
+  const cartasLagartoDetectadas = window.__lagartoEspadaCartasDetectadas || (window.__lagartoEspadaCartasDetectadas = new Set());
+  const eventosSomVistos = window.__eventosSomOnlineVistos || (window.__eventosSomOnlineVistos = new Set());
+  let campoAnteriorLagarto = null;
+  let primeiroSnapshotLagarto = true;
+  let selecaoLagartoAtiva = false;
+  let alvoUidLagarto = null;
+  let overlaySelecaoLagarto = null;
+  let elementosBordaLagarto = [];
+
+  function limparBordasLagarto() {
+    elementosBordaLagarto.forEach(el => {
+      if (el && el.dataset.lagartoBordaAnterior !== undefined) {
+        el.style.border = el.dataset.lagartoBordaAnterior;
+        delete el.dataset.lagartoBordaAnterior;
+      }
+      if (el) el.style.boxShadow = '';
+    });
+    elementosBordaLagarto = [];
+  }
+
+  function fecharModalLagarto() {
+    if (overlaySelecaoLagarto) overlaySelecaoLagarto.remove();
+    overlaySelecaoLagarto = null;
+  }
+
+  function modalConfirmarLagarto() {
+    return new Promise(resolve => {
+      const antigo = document.getElementById('modal-efeito-lagarto-espada');
+      if (antigo) antigo.remove();
+      const fundo = document.createElement('div');
+      fundo.id = 'modal-efeito-lagarto-espada';
+      fundo.style.cssText = 'position:fixed;inset:0;z-index:10000020;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Arial,sans-serif;';
+      const caixa = document.createElement('div');
+      caixa.style.cssText = 'width:min(360px,92vw);background:linear-gradient(160deg,#202b3a,#07090d);border:2px solid #d9ad43;border-radius:12px;padding:20px;color:#fff;text-align:center;box-shadow:0 0 24px #d9ad4366;';
+      const titulo = document.createElement('div');
+      titulo.textContent = '🦎 Efeito: Lagarto de Espada';
+      titulo.style.cssText = 'font-weight:bold;font-size:18px;margin-bottom:12px;color:#ffd76a;';
+      const texto = document.createElement('div');
+      texto.textContent = 'Deseja destruir 1 monstro em Posição de Defesa no campo do oponente?';
+      texto.style.cssText = 'font-size:15px;line-height:1.45;margin-bottom:18px;';
+      const botoes = document.createElement('div');
+      botoes.style.cssText = 'display:flex;gap:12px;justify-content:center;';
+      const criarBotao = (rotulo, cor, valor) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = rotulo;
+        b.style.cssText = `border:0;border-radius:8px;padding:10px 20px;font-weight:bold;cursor:pointer;color:white;background:${cor};`;
+        b.onclick = () => { fundo.remove(); resolve(valor); };
+        return b;
+      };
+      botoes.append(criarBotao('Confirmar','#16803d',true), criarBotao('Cancelar','#9b2929',false));
+      caixa.append(titulo,texto,botoes); fundo.appendChild(caixa); document.body.appendChild(fundo);
+    });
+  }
+
+  function mostrarModalSemAlvosLagarto() {
+    if (typeof window.mostrarAvisoArena === 'function') {
+      window.mostrarAvisoArena('Lagarto de Espada: não há monstros em Posição de Defesa no campo do oponente.');
+    } else {
+      alert('Lagarto de Espada: não há monstros em Posição de Defesa no campo do oponente.');
+    }
+  }
+
+  async function iniciarSelecaoAlvoLagarto(evento) {
+    const uidLocal = uidLocalLagarto();
+    if (!uidLocal || String(evento?.donoUid || '') !== uidLocal) return;
+    if (!evento.id || eventosGatilhoVistos.has(evento.id)) return;
+    eventosGatilhoVistos.add(evento.id);
+
+    const ref = refSalaLagarto();
+    // Limpa o gatilho logo no início, para evitar reabertura ao atualizar o campo.
+    try { await updateDoc(ref, { 'estado.lagartoEspadaPendente': null }); } catch (e) { console.warn('[Lagarto de Espada] Não foi possível limpar o gatilho:', e); }
+    const confirmou = await modalConfirmarLagarto();
+    if (!confirmou) return;
+
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const sala = snap.data() || {};
+    const oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal);
+    if (!oponenteUid) return;
+    const monstrosOponente = sala.field?.[oponenteUid]?.monstros || [];
+    const alvos = monstrosOponente.map((carta,index)=>({carta,index}))
+      .filter(item => estaEmDefesaLagarto(item.carta));
+    if (!alvos.length) { mostrarModalSemAlvosLagarto(); return; }
+
+    alvoUidLagarto = oponenteUid;
+    selecaoLagartoAtiva = true;
+    fecharModalLagarto();
+    limparBordasLagarto();
+    const fundo = document.createElement('div');
+    fundo.id = 'modal-selecao-alvo-lagarto-espada';
+    fundo.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;';
+    fundo.innerHTML = '<strong style="color:#ff7777">Escolha um monstro em Defesa</strong><div style="font-size:12px;margin-top:4px">Os monstros válidos estão destacados com bordas vermelhas.</div><button type="button" style="margin-top:8px;padding:5px 12px;border-radius:6px;border:0;cursor:pointer">Cancelar seleção</button>';
+    fundo.querySelector('button').onclick = () => {
+      selecaoLagartoAtiva = false; alvoUidLagarto = null; limparBordasLagarto(); fundo.remove();
+    };
+    document.body.appendChild(fundo);
+    overlaySelecaoLagarto = fundo;
+
+    // A borda é aplicada em cada carta de defesa visível do campo do oponente.
+    const aplicarBordas = () => {
+      limparBordasLagarto();
+      document.querySelectorAll('.campo-total.campo-oponente .tabuleiro-central .slot.monstro').forEach(slot => {
+        const index = Number(slot.dataset.index);
+        if (!Number.isInteger(index) || !alvos.some(a => a.index === index)) return;
+        const cartaEl = slot.querySelector('.carta-oponente, .carta-campo, .carta-mao, .carta-monstro');
+        if (!cartaEl) return;
+        cartaEl.dataset.lagartoBordaAnterior = cartaEl.style.border || '';
+        cartaEl.style.setProperty('border','3px solid #ff1d25','important');
+        cartaEl.style.setProperty('box-shadow','0 0 12px 4px rgba(255,0,0,.85)','important');
+        cartaEl.style.setProperty('cursor','pointer','important');
+        cartaEl.style.setProperty('pointer-events','auto','important');
+        elementosBordaLagarto.push(cartaEl);
+      });
+    };
+    aplicarBordas();
+    // Guarda a lista válida e a aplica novamente caso o render do campo recrie as cartas.
+    window.__lagartoEspadaAlvosAtuais = alvos.map(a => a.index);
+    window.__lagartoEspadaReaplicarBordas = aplicarBordas;
+  }
+
+  // Reaplica o destaque vermelho se a renderização online reconstruir os elementos do campo.
+  const observadorCampoLagarto = new MutationObserver(() => {
+    if (selecaoLagartoAtiva && typeof window.__lagartoEspadaReaplicarBordas === 'function') window.__lagartoEspadaReaplicarBordas();
+  });
+  observadorCampoLagarto.observe(document.body, { childList: true, subtree: true });
+
+  // Clique no monstro destacado: destrói o alvo e move-o ao Cemitério no Firebase.
+  document.addEventListener('click', async event => {
+    if (!selecaoLagartoAtiva) return;
+    const cartaEl = event.target?.closest?.('.campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-oponente, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-campo, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-mao, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-monstro');
+    if (!cartaEl) return;
+    const slot = cartaEl.closest('.slot.monstro');
+    const index = Number(slot?.dataset.index);
+    if (!Number.isInteger(index) || !window.__lagartoEspadaAlvosAtuais?.includes(index)) return;
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+    selecaoLagartoAtiva = false;
+    limparBordasLagarto(); fecharModalLagarto();
+
+    try {
+      const ref = refSalaLagarto();
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const sala = snap.data() || {};
+      const monstros = [...(sala.field?.[alvoUidLagarto]?.monstros || [])];
+      const alvo = monstros[index];
+      if (!estaEmDefesaLagarto(alvo)) {
+        if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Esse monstro não está mais em Posição de Defesa. Ative o efeito novamente em um próximo momento válido.');
+        return;
+      }
+      const gy = [...(sala.field?.[alvoUidLagarto]?.gy || [])];
+      monstros[index] = null;
+      gy.push({ ...alvo, face: 'up', posicao: 'def', destruidoPor: 'Lagarto de Espada', destruidoEm: Date.now() });
+      const somEvento = { id: `lagarto_destruicao_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, criadoEm: Date.now(), origem: 'Lagarto de Espada' };
+      await updateDoc(ref, {
+        [`field.${alvoUidLagarto}.monstros`]: monstros,
+        [`field.${alvoUidLagarto}.gy`]: gy,
+        [`players.${alvoUidLagarto}.gy`]: gy,
+        'estado.somOnlineEvento': somEvento
+      });
+      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'O monstro'} foi destruído pelo efeito de Lagarto de Espada!`);
+    } catch (erro) {
+      console.error('[Lagarto de Espada] Erro ao destruir o alvo:', erro);
+      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição. Tente novamente.');
+    } finally {
+      alvoUidLagarto = null;
+      window.__lagartoEspadaAlvosAtuais = [];
+    }
+  }, true);
+
+  // Detecta a entrada/virada para cima do Lagarto de Espada em posição de Ataque.
+  onSnapshot(refSalaLagarto(), async snap => {
+    if (!snap.exists()) return;
+    const sala = snap.data() || {};
+    const campo = sala.field || {};
+    const uidLocal = uidLocalLagarto();
+    if (primeiroSnapshotLagarto) {
+      primeiroSnapshotLagarto = false;
+      campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
+      return;
+    }
+    const antes = campoAnteriorLagarto || {};
+    campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
+    if (!uidLocal || !campo[uidLocal]) return;
+    const atuais = campo[uidLocal].monstros || [];
+    const anteriores = antes[uidLocal]?.monstros || [];
+    for (let i = 0; i < atuais.length; i++) {
+      const carta = atuais[i];
+      if (normalizarNomeLagarto(carta?.nome) !== 'lagarto de espada') continue;
+      if (String(carta.posicao || carta.pos || 'atq').toLowerCase() !== 'atq' || !estaFaceUpLagarto(carta)) continue;
+      const velha = anteriores[i];
+      const jaEstavaAtiva = normalizarNomeLagarto(velha?.nome) === 'lagarto de espada' &&
+        String(velha.posicao || velha.pos || 'atq').toLowerCase() === 'atq' && estaFaceUpLagarto(velha);
+      if (jaEstavaAtiva) continue;
+      const idCarta = `${uidLocal}_${i}_${carta.nome}_${carta.img || ''}_${Date.now()}`;
+      if (cartasLagartoDetectadas.has(idCarta)) continue;
+      cartasLagartoDetectadas.add(idCarta);
+      const evento = { id: idCarta, donoUid: uidLocal, index: i, criadoEm: Date.now() };
+      try {
+        await updateDoc(refSalaLagarto(), { 'estado.lagartoEspadaPendente': evento });
+      } catch (erro) { console.error('[Lagarto de Espada] Falha ao publicar o efeito:', erro); }
+    }
+  });
+
+  // O dono do Lagarto abre a confirmação ao receber o gatilho online.
+  onSnapshot(refSalaLagarto(), async snap => {
+    if (!snap.exists()) return;
+    const evento = snap.data()?.estado?.lagartoEspadaPendente;
+    if (!evento?.id || !evento.donoUid || String(evento.donoUid) !== uidLocalLagarto()) return;
+    if (Date.now() - Number(evento.criadoEm || 0) > 60000) return;
+    await iniciarSelecaoAlvoLagarto(evento);
+  });
+
+  // Som de destruição sincronizado: cada cliente toca uma vez ao receber o mesmo ID.
+  onSnapshot(refSalaLagarto(), snap => {
+    if (!snap.exists()) return;
+    const evento = snap.data()?.estado?.somOnlineEvento;
+    if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 10000) return;
+    if (eventosSomVistos.has(evento.id)) return;
+    eventosSomVistos.add(evento.id);
+    if (typeof window.tocarSomDestruicao === 'function') window.tocarSomDestruicao();
+  });
+})();
+
+ // ===== EFEITO: GUERREIRO DO DRAGÃO DE FOGO ===== //
+// Tributa o Guerreiro obrigatoriamente e mais 2 ou mais monstros FOGO NV-5 a NV-20 da mão/campo.
+// O Guerreiro pode ser incluído ou não na soma NV-35; os demais materiais precisam somar NV-35 se ele não for incluído.
+window.ativarEfeitoGuerreiroDragaoFogo = async function(indiceGuerreiro) {
+  const norm = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const nivel = c => {
+    const raw = c?.nv ?? c?.NV ?? c?.nivel ?? c?.['nível'] ?? c?.level;
+    if (raw == null || String(raw).trim()==='') return NaN;
+    const m=String(raw).match(/\d+/); return m ? Number(m[0]) : NaN;
+  };
+  const fogo = c => {
+    const modelo = typeof listaMonstrosFogo !== 'undefined' ? listaMonstrosFogo.find(x=>norm(x.nome)===norm(c?.nome)) : null;
+    const a=norm(c?.atributo ?? c?.elemento ?? c?.attribute ?? modelo?.atributo);
+    return a==='fogo' || a==='fire';
+  };
+  const ref=doc(db,'salas',salaId);
+  let snap=await getDoc(ref); if(!snap.exists()) return;
+  let sala=snap.data(), campo=[...(sala.field?.[meuUid]?.monstros||[])], mao=[...(sala.players?.[meuUid]?.mao||[])];
+  const guerreiro=campo[indiceGuerreiro];
+  if(!guerreiro || norm(guerreiro.nome)!=='guerreiro do dragao de fogo') return;
+  const nvGuerreiro=nivel(guerreiro);
+  const elegiveis=[];
+  mao.forEach((c,i)=>{const nv=nivel(c); if(c && norm(c.nome)!=='dragao de fogo de olhos azuis' && fogo(c) && Number.isFinite(nv) && nv>=5 && nv<=20) elegiveis.push({carta:c,origem:'mao',i,nv});});
+  campo.forEach((c,i)=>{const nv=nivel(c); if(c && i!==indiceGuerreiro && norm(c.nome)!=='dragao de fogo de olhos azuis' && fogo(c) && Number.isFinite(nv) && nv>=5 && nv<=20) elegiveis.push({carta:c,origem:'campo',i,nv});});
+  const deck=[...(sala.players?.[meuUid]?.deck||[])];
+  const alvoDisponivel=mao.some(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis') || deck.some(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis');
+  if(!alvoDisponivel){ await mostrarAvisoArena('Não há Dragão de Fogo de Olhos Azuis na sua mão ou no Deck. O efeito não pode ser ativado.'); return; }
+  if(elegiveis.length<2){ await mostrarAvisoArena('Você precisa de pelo menos 2 monstros adicionais de FOGO, NV-5 a NV-20, na mão ou no campo.'); return; }
+
+  // Modal no mesmo estilo visual de Chamas da Ressurreição: painel central, tema fogo e cartas em grade.
+  const overlay=document.createElement('div');
+  overlay.id='modal-efeito-guerreiro-dragao-fogo';
+  overlay.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:14px;';
+  const modal=document.createElement('div');
+  modal.style.cssText='width:min(780px,96vw);max-height:86vh;overflow-y:auto;background:#111820;color:white;border:2px solid #f0a52b;border-radius:14px;padding:18px;box-shadow:0 0 28px rgba(240,165,43,.3);font-family:Arial,sans-serif;';
+  overlay.appendChild(modal); document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  const title=document.createElement('h2'); title.textContent='🔥 Guerreiro do Dragão de Fogo'; title.style.cssText='margin:0 0 8px;text-align:center;color:#ffd16b'; modal.appendChild(title);
+  const desc=document.createElement('p'); desc.textContent='O Guerreiro será tributado. Escolha pelo menos 2 monstros adicionais do tipo FOGO, NV-5 a NV-20, da mão ou do campo. Marque a opção para incluir o NV do Guerreiro na soma; se não marcar, os outros monstros precisam somar NV-35 ou mais.'; desc.style.cssText='text-align:center;margin:0 0 14px'; modal.appendChild(desc);
+  const incluirWrap=document.createElement('label'); incluirWrap.style.cssText='display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;padding:10px;border:1px solid #c58a25;border-radius:9px;background:#202c36;cursor:pointer;'; modal.appendChild(incluirWrap);
+  const incluirGuerreiro=document.createElement('input'); incluirGuerreiro.type='checkbox'; incluirGuerreiro.checked=false; incluirGuerreiro.style.cssText='width:18px;height:18px;cursor:pointer;'; incluirWrap.appendChild(incluirGuerreiro);
+  const incluirTexto=document.createElement('span'); incluirTexto.textContent=`Incluir o NV do Guerreiro na soma${Number.isFinite(nvGuerreiro)?` (NV-${nvGuerreiro})`:''}`; incluirWrap.appendChild(incluirTexto);
+  const status=document.createElement('p'); status.style.cssText='text-align:center;font-weight:bold;color:#ffd166'; status.textContent='Selecionados: 0 · Soma dos materiais: NV-0'; modal.appendChild(status);
+  // Grade de seleção reproduz o layout das cartas do modal Chamas da Ressurreição.
+  const grid=document.createElement('div');
+  Object.assign(grid.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(125px,1fr))',gap:'10px',border:'1px solid #c58a25',borderRadius:'9px',padding:'10px',background:'#202c36',minHeight:'160px',alignItems:'center'});
+  modal.appendChild(grid);
+  const escolhidos=new Set();
+  const botoes=[];
+  const atualizarStatus=()=>{
+    const somaMateriais=[...escolhidos].reduce((a,j)=>a+elegiveis[j].nv,0);
+    const somaTotal=somaMateriais+(incluirGuerreiro.checked&&Number.isFinite(nvGuerreiro)?nvGuerreiro:0);
+    status.textContent=`Selecionados: ${escolhidos.size} · Soma dos materiais: NV-${somaMateriais} · Soma considerada: NV-${somaTotal}`;
+    status.style.color=escolhidos.size>=2&&somaTotal>=35?'#7dff9b':'#ffd166';
+  };
+  elegiveis.forEach((it,k)=>{
+    const b=document.createElement('button'); b.type='button';
+    Object.assign(b.style,{cursor:'pointer',background:'transparent',color:'white',border:'1px solid transparent',borderRadius:'4px',padding:'9px',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px',minWidth:'0',whiteSpace:'normal'});
+    const img=document.createElement('img');
+    img.src=it.carta.img||it.carta.imagem||it.carta.image||it.carta.imagemUrl||it.carta.urlImagem||'versodacartayugioh.jpg';
+    img.alt=it.carta.nome||'Monstro';
+    img.style.cssText='width:76px;height:108px;object-fit:cover;border-radius:4px';
+    img.onerror=()=>{if(img.src!==new URL('versodacartayugioh.jpg',location.href).href)img.src='versodacartayugioh.jpg';};
+    const nome=document.createElement('strong'); nome.textContent=it.carta.nome||'Monstro'; nome.style.cssText='font-size:12px;text-align:center;overflow-wrap:anywhere;line-height:1.25';
+    const nvLabel=document.createElement('small'); nvLabel.textContent=`NV-${it.nv} · ${it.origem==='mao'?'Da mão':'Do campo'}`; nvLabel.style.cssText='font-size:11px;text-align:center;color:#ffd16b';
+    b.append(img,nome,nvLabel);
+    b.onclick=()=>{
+      if(escolhidos.has(k)){escolhidos.delete(k);b.style.outline='none';b.style.background='transparent';b.style.borderColor='transparent';}
+      else {escolhidos.add(k);b.style.outline='3px solid #f0a52b';b.style.background='#3b3021';b.style.borderColor='#f0a52b';}
+      atualizarStatus();
+    };
+    grid.appendChild(b); botoes.push(b);
+  });
+  incluirGuerreiro.onchange=atualizarStatus;
+  const actions=document.createElement('div'); actions.style.cssText='display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap'; modal.appendChild(actions);
+  const cancelar=document.createElement('button'); cancelar.textContent='Cancelar'; cancelar.style.cssText='display:block;margin:14px auto 0;padding:8px 18px;cursor:pointer;border-radius:8px'; cancelar.onclick=close; actions.appendChild(cancelar);
+  const confirmar=document.createElement('button'); confirmar.textContent='Tributar e invocar'; confirmar.style.cssText='padding:8px 18px;cursor:pointer;border-radius:8px;font-weight:bold;'; actions.appendChild(confirmar);
+  confirmar.onclick=async()=>{
+    const selecionados=[...escolhidos].map(k=>elegiveis[k]);
+    const somaMateriais=selecionados.reduce((a,x)=>a+x.nv,0);
+    const somaConsiderada=somaMateriais+(incluirGuerreiro.checked&&Number.isFinite(nvGuerreiro)?nvGuerreiro:0);
+    if(selecionados.length<2 || somaConsiderada<35){status.textContent=`Escolha pelo menos 2 monstros e alcance NV-35 na soma considerada. Soma atual: NV-${somaConsiderada}.`;return;}
+    confirmar.disabled=true;
+    try {
+      const s2=await getDoc(ref); if(!s2.exists())throw Error('Duelo não encontrado');
+      const d=s2.data(), m2=[...(d.players?.[meuUid]?.mao||[])], deck2=[...(d.players?.[meuUid]?.deck||[])], campo2=[...(d.field?.[meuUid]?.monstros||[])], gy=[...(d.field?.[meuUid]?.gy||[])];
+      const g=campo2[indiceGuerreiro]; if(!g||norm(g.nome)!=='guerreiro do dragao de fogo')throw Error('O Guerreiro não está mais no campo.');
+      for(const it of selecionados){
+        const carta=it.origem==='mao'?m2[it.i]:campo2[it.i];
+        if(!carta || norm(carta.nome)!==norm(it.carta.nome) || !fogo(carta) || nivel(carta)!==it.nv)throw Error('Um dos materiais mudou. Tente novamente.');
+      }
+      const idxMaoDragao=m2.findIndex(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis');
+      const idxDeckDragao=idxMaoDragao<0?deck2.findIndex(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis'):-1;
+      if(idxMaoDragao<0&&idxDeckDragao<0)throw Error('Dragão de Fogo de Olhos Azuis não encontrado na mão ou no Deck.');
+      const livre=campo2.findIndex((c,i)=>!c || i===indiceGuerreiro || selecionados.some(x=>x.origem==='campo'&&x.i===i));
+      if(livre<0)throw Error('Não há espaço no campo para o Dragão.');
+      gy.push({...campo2[indiceGuerreiro],face:'up',posicao:'atq'}); campo2[indiceGuerreiro]=null;
+      for(const it of selecionados){ if(it.origem==='mao'){gy.push({...m2[it.i],face:'up'});m2[it.i]=null;}else{gy.push({...campo2[it.i],face:'up',posicao:'atq'});campo2[it.i]=null;} }
+      let dragao;
+      if(idxMaoDragao>=0){dragao=m2[idxMaoDragao];m2[idxMaoDragao]=null;}else{dragao=deck2[idxDeckDragao];deck2.splice(idxDeckDragao,1);}
+      campo2[livre]={...dragao,nv:Number(dragao.nv??35),atributo:'FOGO',posicao:'atq',face:'up',jaAtacou:false,turnoInvocado:(d.estado||{}).turnoNumero||1};
+      const evento={jogador:meuUid,tempo:Date.now()};
+      close();
+      await updateDoc(ref,{'estado.invocacaoDragaoFogoOlhosAzuis':evento});
+      await window.tocarInvocacaoDragaoFogoOlhosAzuis();
+      await updateDoc(ref,{
+        [`players.${meuUid}.mao`]:m2.filter(Boolean),[`players.${meuUid}.maoQty`]:m2.filter(Boolean).length,
+        [`players.${meuUid}.deck`]:deck2,[`players.${meuUid}.deckQty`]:deck2.length,
+        [`field.${meuUid}.monstros`]:campo2,[`field.${meuUid}.gy`]:gy,[`players.${meuUid}.gy`]:gy,
+        'estado.invocacaoDragaoFogoOlhosAzuis':null,
+        'estado.tremorAtq':Number(campo2[livre].atq??campo2[livre].atk??0)>=2350,
+        'estado.valorAtqTremor':Number(campo2[livre].atq??campo2[livre].atk??0)
+      });
+      // O tremor e seu som são disparados apenas pelo listener de estado.tremorAtq,
+      // evitando reproduzir o som duas vezes no cliente que realizou a invocação.
+      await mostrarAvisoArena('Dragão de Fogo de Olhos Azuis invocado!');
+    } catch(e){console.error('Efeito Guerreiro do Dragão de Fogo:',e);confirmar.disabled=false;await mostrarAvisoArena(e.message||'Não foi possível resolver o efeito.');}
+  };
+};
+
  // --- FUNÇÃO INVOCAÇÃO DO VÍDEO DRAGÃO DE FOGO DE OLHOS AZUIS --- //
 window.tocarInvocacaoDragaoFogoOlhosAzuis = function() {
     return new Promise((resolve) => {
@@ -3290,13 +3652,6 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
     console.error("[Filhote Dragão Fogo] Erro no monitor do Cemitério:", erroMonitorFilhote);
   }
   
-  // =================================================
-  // 👁️ ADICIONE A CHAMADA DA FUNÇÃO DE BANIDAS AQUI!
-  // =================================================
-  if (typeof renderizarBanidas === "function") {
-      renderizarBanidas(field, players, meuUid);
-  }
-   
   // ⚡ GATILHO DO CAVALEIRO DE COMANDO: RECALCULA O ATQ EM TEMPO REAL ANTES DE RENDERIZAR
   if (typeof window.aplicarEfeitoCavaleiroDeComando === "function") {
     // Passa o campo e o teu UID
@@ -10161,127 +10516,6 @@ async function alternarPosicaoBatalha(index) {
 
 window.alternarPosicaoBatalha = alternarPosicaoBatalha;
 
-
-// ===== EFEITO: GUERREIRO DO DRAGÃO DE FOGO =====
-// Tributa o Guerreiro obrigatoriamente e mais 2 ou mais monstros FOGO NV-5 a NV-20 da mão/campo.
-// O Guerreiro pode ser incluído ou não na soma NV-35; os demais materiais precisam somar NV-35 se ele não for incluído.
-window.ativarEfeitoGuerreiroDragaoFogo = async function(indiceGuerreiro) {
-  const norm = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-  const nivel = c => {
-    const raw = c?.nv ?? c?.NV ?? c?.nivel ?? c?.['nível'] ?? c?.level;
-    if (raw == null || String(raw).trim()==='') return NaN;
-    const m=String(raw).match(/\d+/); return m ? Number(m[0]) : NaN;
-  };
-  const fogo = c => {
-    const modelo = typeof listaMonstrosFogo !== 'undefined' ? listaMonstrosFogo.find(x=>norm(x.nome)===norm(c?.nome)) : null;
-    const a=norm(c?.atributo ?? c?.elemento ?? c?.attribute ?? modelo?.atributo);
-    return a==='fogo' || a==='fire';
-  };
-  const ref=doc(db,'salas',salaId);
-  let snap=await getDoc(ref); if(!snap.exists()) return;
-  let sala=snap.data(), campo=[...(sala.field?.[meuUid]?.monstros||[])], mao=[...(sala.players?.[meuUid]?.mao||[])];
-  const guerreiro=campo[indiceGuerreiro];
-  if(!guerreiro || norm(guerreiro.nome)!=='guerreiro do dragao de fogo') return;
-  const nvGuerreiro=nivel(guerreiro);
-  const elegiveis=[];
-  mao.forEach((c,i)=>{const nv=nivel(c); if(c && norm(c.nome)!=='dragao de fogo de olhos azuis' && fogo(c) && Number.isFinite(nv) && nv>=5 && nv<=20) elegiveis.push({carta:c,origem:'mao',i,nv});});
-  campo.forEach((c,i)=>{const nv=nivel(c); if(c && i!==indiceGuerreiro && norm(c.nome)!=='dragao de fogo de olhos azuis' && fogo(c) && Number.isFinite(nv) && nv>=5 && nv<=20) elegiveis.push({carta:c,origem:'campo',i,nv});});
-  const deck=[...(sala.players?.[meuUid]?.deck||[])];
-  const alvoDisponivel=mao.some(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis') || deck.some(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis');
-  if(!alvoDisponivel){ await mostrarAvisoArena('Não há Dragão de Fogo de Olhos Azuis na sua mão ou no Deck. O efeito não pode ser ativado.'); return; }
-  if(elegiveis.length<2){ await mostrarAvisoArena('Você precisa de pelo menos 2 monstros adicionais de FOGO, NV-5 a NV-20, na mão ou no campo.'); return; }
-
-  // Modal no mesmo estilo visual de Chamas da Ressurreição: painel central, tema fogo e cartas em grade.
-  const overlay=document.createElement('div');
-  overlay.id='modal-efeito-guerreiro-dragao-fogo';
-  overlay.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:14px;';
-  const modal=document.createElement('div');
-  modal.style.cssText='width:min(780px,96vw);max-height:86vh;overflow-y:auto;background:#111820;color:white;border:2px solid #f0a52b;border-radius:14px;padding:18px;box-shadow:0 0 28px rgba(240,165,43,.3);font-family:Arial,sans-serif;';
-  overlay.appendChild(modal); document.body.appendChild(overlay);
-  const close=()=>overlay.remove();
-  const title=document.createElement('h2'); title.textContent='🔥 Guerreiro do Dragão de Fogo'; title.style.cssText='margin:0 0 8px;text-align:center;color:#ffd16b'; modal.appendChild(title);
-  const desc=document.createElement('p'); desc.textContent='O Guerreiro será tributado. Escolha pelo menos 2 monstros adicionais do tipo FOGO, NV-5 a NV-20, da mão ou do campo. Marque a opção para incluir o NV do Guerreiro na soma; se não marcar, os outros monstros precisam somar NV-35 ou mais.'; desc.style.cssText='text-align:center;margin:0 0 14px'; modal.appendChild(desc);
-  const incluirWrap=document.createElement('label'); incluirWrap.style.cssText='display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;padding:10px;border:1px solid #c58a25;border-radius:9px;background:#202c36;cursor:pointer;'; modal.appendChild(incluirWrap);
-  const incluirGuerreiro=document.createElement('input'); incluirGuerreiro.type='checkbox'; incluirGuerreiro.checked=false; incluirGuerreiro.style.cssText='width:18px;height:18px;cursor:pointer;'; incluirWrap.appendChild(incluirGuerreiro);
-  const incluirTexto=document.createElement('span'); incluirTexto.textContent=`Incluir o NV do Guerreiro na soma${Number.isFinite(nvGuerreiro)?` (NV-${nvGuerreiro})`:''}`; incluirWrap.appendChild(incluirTexto);
-  const status=document.createElement('p'); status.style.cssText='text-align:center;font-weight:bold;color:#ffd166'; status.textContent='Selecionados: 0 · Soma dos materiais: NV-0'; modal.appendChild(status);
-  // Grade de seleção reproduz o layout das cartas do modal Chamas da Ressurreição.
-  const grid=document.createElement('div');
-  Object.assign(grid.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(125px,1fr))',gap:'10px',border:'1px solid #c58a25',borderRadius:'9px',padding:'10px',background:'#202c36',minHeight:'160px',alignItems:'center'});
-  modal.appendChild(grid);
-  const escolhidos=new Set();
-  const botoes=[];
-  const atualizarStatus=()=>{
-    const somaMateriais=[...escolhidos].reduce((a,j)=>a+elegiveis[j].nv,0);
-    const somaTotal=somaMateriais+(incluirGuerreiro.checked&&Number.isFinite(nvGuerreiro)?nvGuerreiro:0);
-    status.textContent=`Selecionados: ${escolhidos.size} · Soma dos materiais: NV-${somaMateriais} · Soma considerada: NV-${somaTotal}`;
-    status.style.color=escolhidos.size>=2&&somaTotal>=35?'#7dff9b':'#ffd166';
-  };
-  elegiveis.forEach((it,k)=>{
-    const b=document.createElement('button'); b.type='button';
-    Object.assign(b.style,{cursor:'pointer',background:'transparent',color:'white',border:'1px solid transparent',borderRadius:'4px',padding:'9px',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px',minWidth:'0',whiteSpace:'normal'});
-    const img=document.createElement('img');
-    img.src=it.carta.img||it.carta.imagem||it.carta.image||it.carta.imagemUrl||it.carta.urlImagem||'versodacartayugioh.jpg';
-    img.alt=it.carta.nome||'Monstro';
-    img.style.cssText='width:76px;height:108px;object-fit:cover;border-radius:4px';
-    img.onerror=()=>{if(img.src!==new URL('versodacartayugioh.jpg',location.href).href)img.src='versodacartayugioh.jpg';};
-    const nome=document.createElement('strong'); nome.textContent=it.carta.nome||'Monstro'; nome.style.cssText='font-size:12px;text-align:center;overflow-wrap:anywhere;line-height:1.25';
-    const nvLabel=document.createElement('small'); nvLabel.textContent=`NV-${it.nv} · ${it.origem==='mao'?'Da mão':'Do campo'}`; nvLabel.style.cssText='font-size:11px;text-align:center;color:#ffd16b';
-    b.append(img,nome,nvLabel);
-    b.onclick=()=>{
-      if(escolhidos.has(k)){escolhidos.delete(k);b.style.outline='none';b.style.background='transparent';b.style.borderColor='transparent';}
-      else {escolhidos.add(k);b.style.outline='3px solid #f0a52b';b.style.background='#3b3021';b.style.borderColor='#f0a52b';}
-      atualizarStatus();
-    };
-    grid.appendChild(b); botoes.push(b);
-  });
-  incluirGuerreiro.onchange=atualizarStatus;
-  const actions=document.createElement('div'); actions.style.cssText='display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap'; modal.appendChild(actions);
-  const cancelar=document.createElement('button'); cancelar.textContent='Cancelar'; cancelar.style.cssText='display:block;margin:14px auto 0;padding:8px 18px;cursor:pointer;border-radius:8px'; cancelar.onclick=close; actions.appendChild(cancelar);
-  const confirmar=document.createElement('button'); confirmar.textContent='Tributar e invocar'; confirmar.style.cssText='padding:8px 18px;cursor:pointer;border-radius:8px;font-weight:bold;'; actions.appendChild(confirmar);
-  confirmar.onclick=async()=>{
-    const selecionados=[...escolhidos].map(k=>elegiveis[k]);
-    const somaMateriais=selecionados.reduce((a,x)=>a+x.nv,0);
-    const somaConsiderada=somaMateriais+(incluirGuerreiro.checked&&Number.isFinite(nvGuerreiro)?nvGuerreiro:0);
-    if(selecionados.length<2 || somaConsiderada<35){status.textContent=`Escolha pelo menos 2 monstros e alcance NV-35 na soma considerada. Soma atual: NV-${somaConsiderada}.`;return;}
-    confirmar.disabled=true;
-    try {
-      const s2=await getDoc(ref); if(!s2.exists())throw Error('Duelo não encontrado');
-      const d=s2.data(), m2=[...(d.players?.[meuUid]?.mao||[])], deck2=[...(d.players?.[meuUid]?.deck||[])], campo2=[...(d.field?.[meuUid]?.monstros||[])], gy=[...(d.field?.[meuUid]?.gy||[])];
-      const g=campo2[indiceGuerreiro]; if(!g||norm(g.nome)!=='guerreiro do dragao de fogo')throw Error('O Guerreiro não está mais no campo.');
-      for(const it of selecionados){
-        const carta=it.origem==='mao'?m2[it.i]:campo2[it.i];
-        if(!carta || norm(carta.nome)!==norm(it.carta.nome) || !fogo(carta) || nivel(carta)!==it.nv)throw Error('Um dos materiais mudou. Tente novamente.');
-      }
-      const idxMaoDragao=m2.findIndex(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis');
-      const idxDeckDragao=idxMaoDragao<0?deck2.findIndex(c=>c&&norm(c.nome)==='dragao de fogo de olhos azuis'):-1;
-      if(idxMaoDragao<0&&idxDeckDragao<0)throw Error('Dragão de Fogo de Olhos Azuis não encontrado na mão ou no Deck.');
-      const livre=campo2.findIndex((c,i)=>!c || i===indiceGuerreiro || selecionados.some(x=>x.origem==='campo'&&x.i===i));
-      if(livre<0)throw Error('Não há espaço no campo para o Dragão.');
-      gy.push({...campo2[indiceGuerreiro],face:'up',posicao:'atq'}); campo2[indiceGuerreiro]=null;
-      for(const it of selecionados){ if(it.origem==='mao'){gy.push({...m2[it.i],face:'up'});m2[it.i]=null;}else{gy.push({...campo2[it.i],face:'up',posicao:'atq'});campo2[it.i]=null;} }
-      let dragao;
-      if(idxMaoDragao>=0){dragao=m2[idxMaoDragao];m2[idxMaoDragao]=null;}else{dragao=deck2[idxDeckDragao];deck2.splice(idxDeckDragao,1);}
-      campo2[livre]={...dragao,nv:Number(dragao.nv??35),atributo:'FOGO',posicao:'atq',face:'up',jaAtacou:false,turnoInvocado:(d.estado||{}).turnoNumero||1};
-      const evento={jogador:meuUid,tempo:Date.now()};
-      close();
-      await updateDoc(ref,{'estado.invocacaoDragaoFogoOlhosAzuis':evento});
-      await window.tocarInvocacaoDragaoFogoOlhosAzuis();
-      await updateDoc(ref,{
-        [`players.${meuUid}.mao`]:m2.filter(Boolean),[`players.${meuUid}.maoQty`]:m2.filter(Boolean).length,
-        [`players.${meuUid}.deck`]:deck2,[`players.${meuUid}.deckQty`]:deck2.length,
-        [`field.${meuUid}.monstros`]:campo2,[`field.${meuUid}.gy`]:gy,[`players.${meuUid}.gy`]:gy,
-        'estado.invocacaoDragaoFogoOlhosAzuis':null,
-        'estado.tremorAtq':Number(campo2[livre].atq??campo2[livre].atk??0)>=2350,
-        'estado.valorAtqTremor':Number(campo2[livre].atq??campo2[livre].atk??0)
-      });
-      // O tremor e seu som são disparados apenas pelo listener de estado.tremorAtq,
-      // evitando reproduzir o som duas vezes no cliente que realizou a invocação.
-      await mostrarAvisoArena('Dragão de Fogo de Olhos Azuis invocado!');
-    } catch(e){console.error('Efeito Guerreiro do Dragão de Fogo:',e);confirmar.disabled=false;await mostrarAvisoArena(e.message||'Não foi possível resolver o efeito.');}
-  };
-};
-
 // ===== SISTEMA DE FUSÃO POR NV — DUELISTAS DO DESTINO =====
 const listaMonstrosFogo = [
   {
@@ -12156,268 +12390,6 @@ async function executarTurnoIA(salaId, salaData) {
 async function animarTrajetoAtaque(origemEl, destinoEl, esAtaqueDireto = false) {
     await animarCartaRealAtaque(origemEl, destinoEl, esAtaqueDireto, 550);
 }
-
-/* =====================================================================
-   🦎 EFEITO ONLINE — LAGARTO DE ESPADA
-   Ao ser Invocado com a face para cima em posição de Ataque, seu controlador
-   pode destruir 1 monstro em Posição de Defesa no campo do oponente.
-   O evento de som é publicado na sala para os dois clientes online.
-   ===================================================================== */
-(() => {
-  if (window.__lagartoEspadaSistemaInstalado) return;
-  window.__lagartoEspadaSistemaInstalado = true;
-
-  const normalizarNomeLagarto = valor => String(valor || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  const estaEmDefesaLagarto = carta => !!carta &&
-    (String(carta.posicao || carta.pos || '').toLowerCase() === 'def');
-  const estaFaceUpLagarto = carta => !!carta &&
-    String(carta.face || 'up').toLowerCase() !== 'down';
-  const uidLocalLagarto = () => String(window.userUid || meuUid || '');
-  const refSalaLagarto = () => doc(db, 'salas', salaId);
-  const eventosGatilhoVistos = window.__lagartoEspadaGatilhosVistos || (window.__lagartoEspadaGatilhosVistos = new Set());
-  const cartasLagartoDetectadas = window.__lagartoEspadaCartasDetectadas || (window.__lagartoEspadaCartasDetectadas = new Set());
-  const eventosSomVistos = window.__eventosSomOnlineVistos || (window.__eventosSomOnlineVistos = new Set());
-  let campoAnteriorLagarto = null;
-  let primeiroSnapshotLagarto = true;
-  let selecaoLagartoAtiva = false;
-  let alvoUidLagarto = null;
-  let overlaySelecaoLagarto = null;
-  let elementosBordaLagarto = [];
-
-  function limparBordasLagarto() {
-    elementosBordaLagarto.forEach(el => {
-      if (el && el.dataset.lagartoBordaAnterior !== undefined) {
-        el.style.border = el.dataset.lagartoBordaAnterior;
-        delete el.dataset.lagartoBordaAnterior;
-      }
-      if (el) el.style.boxShadow = '';
-    });
-    elementosBordaLagarto = [];
-  }
-
-  function fecharModalLagarto() {
-    if (overlaySelecaoLagarto) overlaySelecaoLagarto.remove();
-    overlaySelecaoLagarto = null;
-  }
-
-  function modalConfirmarLagarto() {
-    return new Promise(resolve => {
-      const antigo = document.getElementById('modal-efeito-lagarto-espada');
-      if (antigo) antigo.remove();
-      const fundo = document.createElement('div');
-      fundo.id = 'modal-efeito-lagarto-espada';
-      fundo.style.cssText = 'position:fixed;inset:0;z-index:10000020;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Arial,sans-serif;';
-      const caixa = document.createElement('div');
-      caixa.style.cssText = 'width:min(360px,92vw);background:linear-gradient(160deg,#202b3a,#07090d);border:2px solid #d9ad43;border-radius:12px;padding:20px;color:#fff;text-align:center;box-shadow:0 0 24px #d9ad4366;';
-      const titulo = document.createElement('div');
-      titulo.textContent = '🦎 Efeito: Lagarto de Espada';
-      titulo.style.cssText = 'font-weight:bold;font-size:18px;margin-bottom:12px;color:#ffd76a;';
-      const texto = document.createElement('div');
-      texto.textContent = 'Deseja destruir 1 monstro em Posição de Defesa no campo do oponente?';
-      texto.style.cssText = 'font-size:15px;line-height:1.45;margin-bottom:18px;';
-      const botoes = document.createElement('div');
-      botoes.style.cssText = 'display:flex;gap:12px;justify-content:center;';
-      const criarBotao = (rotulo, cor, valor) => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.textContent = rotulo;
-        b.style.cssText = `border:0;border-radius:8px;padding:10px 20px;font-weight:bold;cursor:pointer;color:white;background:${cor};`;
-        b.onclick = () => { fundo.remove(); resolve(valor); };
-        return b;
-      };
-      botoes.append(criarBotao('Confirmar','#16803d',true), criarBotao('Cancelar','#9b2929',false));
-      caixa.append(titulo,texto,botoes); fundo.appendChild(caixa); document.body.appendChild(fundo);
-    });
-  }
-
-  function mostrarModalSemAlvosLagarto() {
-    if (typeof window.mostrarAvisoArena === 'function') {
-      window.mostrarAvisoArena('Lagarto de Espada: não há monstros em Posição de Defesa no campo do oponente.');
-    } else {
-      alert('Lagarto de Espada: não há monstros em Posição de Defesa no campo do oponente.');
-    }
-  }
-
-  async function iniciarSelecaoAlvoLagarto(evento) {
-    const uidLocal = uidLocalLagarto();
-    if (!uidLocal || String(evento?.donoUid || '') !== uidLocal) return;
-    if (!evento.id || eventosGatilhoVistos.has(evento.id)) return;
-    eventosGatilhoVistos.add(evento.id);
-
-    const ref = refSalaLagarto();
-    // Limpa o gatilho logo no início, para evitar reabertura ao atualizar o campo.
-    try { await updateDoc(ref, { 'estado.lagartoEspadaPendente': null }); } catch (e) { console.warn('[Lagarto de Espada] Não foi possível limpar o gatilho:', e); }
-    const confirmou = await modalConfirmarLagarto();
-    if (!confirmou) return;
-
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    const sala = snap.data() || {};
-    const oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal);
-    if (!oponenteUid) return;
-    const monstrosOponente = sala.field?.[oponenteUid]?.monstros || [];
-    const alvos = monstrosOponente.map((carta,index)=>({carta,index}))
-      .filter(item => estaEmDefesaLagarto(item.carta));
-    if (!alvos.length) { mostrarModalSemAlvosLagarto(); return; }
-
-    alvoUidLagarto = oponenteUid;
-    selecaoLagartoAtiva = true;
-    fecharModalLagarto();
-    limparBordasLagarto();
-    const fundo = document.createElement('div');
-    fundo.id = 'modal-selecao-alvo-lagarto-espada';
-
-  // --- altura e posiçao --- //
-    fundo.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;';
-
-    fundo.innerHTML = '<strong style="color:#ff7777">Escolha um monstro em Defesa</strong><div style="font-size:12px;margin-top:4px">Os monstros válidos estão destacados com bordas vermelhas.</div><button type="button" style="margin-top:8px;padding:5px 12px;border-radius:6px;border:0;cursor:pointer">Cancelar seleção</button>';
-    fundo.querySelector('button').onclick = () => {
-      selecaoLagartoAtiva = false; alvoUidLagarto = null; limparBordasLagarto(); fundo.remove();
-    };
-    document.body.appendChild(fundo);
-    overlaySelecaoLagarto = fundo;
-
-    // A borda é aplicada em cada carta de defesa visível do campo do oponente.
-    const aplicarBordas = () => {
-      limparBordasLagarto();
-      document.querySelectorAll('.campo-total.campo-oponente .tabuleiro-central .slot.monstro').forEach(slot => {
-        const index = Number(slot.dataset.index);
-        if (!Number.isInteger(index) || !alvos.some(a => a.index === index)) return;
-        const cartaEl = slot.querySelector('.carta-oponente, .carta-campo, .carta-mao, .carta-monstro');
-        if (!cartaEl) return;
-        cartaEl.dataset.lagartoBordaAnterior = cartaEl.style.border || '';
-        cartaEl.style.setProperty('border','3px solid #ff1d25','important');
-        cartaEl.style.setProperty('box-shadow','0 0 12px 4px rgba(255,0,0,.85)','important');
-        cartaEl.style.setProperty('cursor','pointer','important');
-        cartaEl.style.setProperty('pointer-events','auto','important');
-        elementosBordaLagarto.push(cartaEl);
-      });
-    };
-    aplicarBordas();
-    // Guarda a lista válida e a aplica novamente caso o render do campo recrie as cartas.
-    window.__lagartoEspadaAlvosAtuais = alvos.map(a => a.index);
-    window.__lagartoEspadaReaplicarBordas = aplicarBordas;
-  }
-
-  // Reaplica o destaque vermelho se a renderização online reconstruir os elementos do campo.
-  const observadorCampoLagarto = new MutationObserver(() => {
-    if (selecaoLagartoAtiva && typeof window.__lagartoEspadaReaplicarBordas === 'function') window.__lagartoEspadaReaplicarBordas();
-  });
-  observadorCampoLagarto.observe(document.body, { childList: true, subtree: true });
-
-  // Clique no monstro destacado: destrói o alvo e move-o ao Cemitério no Firebase.
-  document.addEventListener('click', async event => {
-    if (!selecaoLagartoAtiva) return;
-    const cartaEl = event.target?.closest?.('.campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-oponente, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-campo, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-mao, .campo-total.campo-oponente .tabuleiro-central .slot.monstro .carta-monstro');
-    if (!cartaEl) return;
-    const slot = cartaEl.closest('.slot.monstro');
-    const index = Number(slot?.dataset.index);
-    if (!Number.isInteger(index) || !window.__lagartoEspadaAlvosAtuais?.includes(index)) return;
-    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    selecaoLagartoAtiva = false;
-    limparBordasLagarto(); fecharModalLagarto();
-
-    try {
-      const ref = refSalaLagarto();
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const sala = snap.data() || {};
-      const monstros = [...(sala.field?.[alvoUidLagarto]?.monstros || [])];
-      const alvo = monstros[index];
-      if (!estaEmDefesaLagarto(alvo)) {
-        if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Esse monstro não está mais em Posição de Defesa. Ative o efeito novamente em um próximo momento válido.');
-        return;
-      }
-      const gy = [...(sala.field?.[alvoUidLagarto]?.gy || [])];
-      monstros[index] = null;
-      gy.push({ ...alvo, face: 'up', posicao: 'def', destruidoPor: 'Lagarto de Espada', destruidoEm: Date.now() });
-      const somEvento = { id: `lagarto_destruicao_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, criadoEm: Date.now(), origem: 'Lagarto de Espada' };
-      await updateDoc(ref, {
-        [`field.${alvoUidLagarto}.monstros`]: monstros,
-        [`field.${alvoUidLagarto}.gy`]: gy,
-        [`players.${alvoUidLagarto}.gy`]: gy,
-        'estado.somOnlineEvento': somEvento
-      });
-      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'O monstro'} foi destruído pelo efeito de Lagarto de Espada!`);
-    } catch (erro) {
-      console.error('[Lagarto de Espada] Erro ao destruir o alvo:', erro);
-      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição. Tente novamente.');
-    } finally {
-      alvoUidLagarto = null;
-      window.__lagartoEspadaAlvosAtuais = [];
-    }
-  }, true);
-
-  // Detecta a entrada/virada para cima do Lagarto de Espada em posição de Ataque.
-  // Aceita os formatos de posição/face usados por diferentes caminhos do jogo.
-  const lagartoEstaEmAtaque = carta => {
-    if (!carta) return false;
-    const pos = normalizarNomeLagarto(carta.posicao || carta.pos || 'atq')
-      .replace(/\\s+/g, ' ').trim();
-    const posAtaque = ['atq', 'ataque', 'attack', 'posicao de ataque', 'posição de ataque'];
-    return posAtaque.includes(pos) && estaFaceUpLagarto(carta);
-  };
-  const lagartoEstavaAtivoNoSlot = carta =>
-    normalizarNomeLagarto(carta?.nome) === 'lagarto de espada' && lagartoEstaEmAtaque(carta);
-
-  onSnapshot(refSalaLagarto(), async snap => {
-    if (!snap.exists()) return;
-    const sala = snap.data() || {};
-    const campo = sala.field || {};
-    const uidLocal = uidLocalLagarto();
-    if (primeiroSnapshotLagarto) {
-      primeiroSnapshotLagarto = false;
-      campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
-      return;
-    }
-
-    const antes = campoAnteriorLagarto || {};
-    // Salva o estado recebido antes de publicar eventos, para evitar reentrada.
-    campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
-    if (!uidLocal || !campo[uidLocal]) return;
-
-    const atuais = campo[uidLocal].monstros || [];
-    const anteriores = antes[uidLocal]?.monstros || [];
-    for (let i = 0; i < atuais.length; i++) {
-      const carta = atuais[i];
-      if (normalizarNomeLagarto(carta?.nome) !== 'lagarto de espada') continue;
-      if (!lagartoEstaEmAtaque(carta)) continue;
-
-      // Só dispara quando este slot passa de não ativo para face-up em Ataque.
-      // Isso cobre tanto Invocar da mão quanto revelar/virar a carta para Ataque.
-      if (lagartoEstavaAtivoNoSlot(anteriores[i])) continue;
-
-      const idCarta = `${uidLocal}_${i}_${normalizarNomeLagarto(carta.nome)}_${String(carta.img || '')}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
-      if (cartasLagartoDetectadas.has(idCarta)) continue;
-      cartasLagartoDetectadas.add(idCarta);
-      const evento = { id: idCarta, donoUid: uidLocal, index: i, criadoEm: Date.now() };
-      try {
-        await updateDoc(refSalaLagarto(), { 'estado.lagartoEspadaPendente': evento });
-      } catch (erro) {
-        console.error('[Lagarto de Espada] Falha ao publicar o efeito:', erro);
-      }
-    }
-  });
-
-  // O dono do Lagarto abre a confirmação ao receber o gatilho online.
-  onSnapshot(refSalaLagarto(), async snap => {
-    if (!snap.exists()) return;
-    const evento = snap.data()?.estado?.lagartoEspadaPendente;
-    if (!evento?.id || !evento.donoUid || String(evento.donoUid) !== uidLocalLagarto()) return;
-    if (Date.now() - Number(evento.criadoEm || 0) > 60000) return;
-    await iniciarSelecaoAlvoLagarto(evento);
-  });
-
-  // Som de destruição sincronizado: cada cliente toca uma vez ao receber o mesmo ID.
-  onSnapshot(refSalaLagarto(), snap => {
-    if (!snap.exists()) return;
-    const evento = snap.data()?.estado?.somOnlineEvento;
-    if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 10000) return;
-    if (eventosSomVistos.has(evento.id)) return;
-    eventosSomVistos.add(evento.id);
-    if (typeof window.tocarSomDestruicao === 'function') window.tocarSomDestruicao();
-  });
-})();
 
 /* =====================================================================
    🐉 ARMADILHA ONLINE — IRA DO REI DRAGÃO
