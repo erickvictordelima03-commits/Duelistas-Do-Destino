@@ -3152,7 +3152,7 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
         [`field.${uidDonoArmadilha}.magias`]:magiasDono,
         [`field.${uidDonoArmadilha}.gy`]:gyDono,
         [`players.${uidDonoArmadilha}.gy`]:gyDono,
-        'estado.somOnlineEvento':somEvento
+        'estado.iraReiDragaoSomEvento':somEvento
       });
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'A carta'} foi destruída por Ira do Rei Dragão!`);
       // Mantém o aviso do oponente visível, como na Barreira das Chamas.
@@ -3163,6 +3163,18 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição da carta.');
     }
   }, true);
+
+  // Som de destruição sincronizado: os dois jogadores recebem o mesmo evento e tocam uma vez.
+  const sonsIraVistos = window.__iraReiDragaoSonsVistos || (window.__iraReiDragaoSonsVistos = new Set());
+  onSnapshot(refIraSala(), snap => {
+    if (!snap.exists()) return;
+    const eventoSom = snap.data()?.estado?.iraReiDragaoSomEvento;
+    if (!eventoSom?.id || eventoSom.origem !== 'Ira do Rei Dragão') return;
+    if (Date.now() - Number(eventoSom.criadoEm || 0) > 10000) return;
+    if (sonsIraVistos.has(eventoSom.id)) return;
+    sonsIraVistos.add(eventoSom.id);
+    if (typeof window.tocarSomDestruicao === 'function') window.tocarSomDestruicao();
+  });
 
   onSnapshot(refIraSala(), async snap => {
     if (!snap.exists()) return;
