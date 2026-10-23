@@ -2973,7 +2973,202 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
     }
 }
 
-// ============================================= EFEITOS DE MONSTRO ===================================================
+// ============================================= EFEITOS DE CARTAS ARMADILHAS ======================================================
+
+/* =====================================================================
+   🐉 ARMADILHA ONLINE — IRA DO REI DRAGÃO
+   Quando um Dragão é destruído por uma carta do oponente, o dono da armadilha
+   escolhe qualquer carta do campo adversário (monstro, Magia ou Armadilha).
+   ===================================================================== */
+(() => {
+  if (window.__iraReiDragaoSistemaInstalado) return;
+  window.__iraReiDragaoSistemaInstalado = true;
+  const normIra = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const uidIraLocal = () => String(window.userUid || meuUid || '');
+  const refIraSala = () => doc(db, 'salas', salaId);
+  const vistosIra = window.__iraReiDragaoEventosVistos || (window.__iraReiDragaoEventosVistos = new Set());
+  let selecaoIraAtiva = false;
+  let alvoIraUid = null;
+  let alvosIraAtuais = [];
+  let elementosIraBorda = [];
+  let observerIra = null;
+
+  const sincronizarAvisoIraOponente = (resolucao) => {
+    const idAviso = 'aviso-ira-rei-dragao-oponente';
+    let aviso = document.getElementById(idAviso);
+    if (!resolucao?.id || String(resolucao.donoUid) === uidIraLocal()) {
+      aviso?.remove();
+      return;
+    }
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = idAviso;
+      aviso.setAttribute('role', 'alert');
+      aviso.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000019;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:92vw;box-shadow:0 0 20px #f003;font-family:Arial,sans-serif;pointer-events:none;';
+      document.body.appendChild(aviso);
+    }
+    aviso.innerHTML = '<strong style="color:#ff7777">⚠️ Armadilha ativada pelo oponente</strong><div style="font-size:13px;margin-top:5px">Ira do Rei Dragão está sendo resolvida. Os ataques ficam bloqueados até o efeito terminar.</div>';
+  };
+
+  const limparBordasIra = () => {
+    elementosIraBorda.forEach(el => {
+      if (!el?.isConnected) return;
+      if (el.dataset.iraOutlineAnterior !== undefined) el.style.outline = el.dataset.iraOutlineAnterior;
+      if (el.dataset.iraOutlineOffsetAnterior !== undefined) el.style.outlineOffset = el.dataset.iraOutlineOffsetAnterior;
+      el.style.removeProperty('box-shadow');
+      el.style.removeProperty('cursor');
+      el.style.removeProperty('pointer-events');
+      delete el.dataset.iraOutlineAnterior;
+      delete el.dataset.iraOutlineOffsetAnterior;
+    });
+    elementosIraBorda = [];
+  };
+  const finalizarSelecaoIra = () => {
+    selecaoIraAtiva = false;
+    alvoIraUid = null;
+    alvosIraAtuais = [];
+    limparBordasIra();
+    document.getElementById('modal-selecao-ira-rei-dragao')?.remove();
+    if (observerIra) { observerIra.disconnect(); observerIra = null; }
+  };
+
+  async function iniciarSelecaoIra(evento) {
+    const uidLocal = uidIraLocal();
+    if (!evento?.id || String(evento.donoUid) !== uidLocal || vistosIra.has(evento.id)) return;
+    vistosIra.add(evento.id);
+    const ref = refIraSala();
+    const resolucaoIra = {
+      id: evento.id,
+      donoUid: uidLocal,
+      iniciadoEm: Date.now(),
+      mensagem: 'O oponente ativou a armadilha Ira do Rei Dragão. Aguarde a resolução do efeito.'
+    };
+    try {
+      await updateDoc(ref, {
+        'estado.iraReiDragaoPendente': null,
+        'estado.iraReiDragaoResolucao': resolucaoIra
+      });
+    } catch (e) {
+      console.warn('[Ira do Rei Dragão] Não foi possível registrar a resolução:', e);
+    }
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const sala = snap.data() || {};
+    const oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal);
+    if (!oponenteUid) return;
+    const monstros = sala.field?.[oponenteUid]?.monstros || [];
+    const magias = sala.field?.[oponenteUid]?.magias || [];
+    const alvos = [];
+    monstros.forEach((carta,index) => { if (carta) alvos.push({ zona:'monstros', index, carta }); });
+    magias.forEach((carta,index) => { if (carta) alvos.push({ zona:'magias', index, carta }); });
+    if (!alvos.length) {
+      try { await updateDoc(ref, { 'estado.iraReiDragaoResolucao': null }); } catch (_) {}
+      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Ira do Rei Dragão foi ativada, mas o oponente não tem cartas no campo para destruir.');
+      return;
+    }
+
+    alvoIraUid = oponenteUid;
+    alvosIraAtuais = alvos.map(a => `${a.zona}:${a.index}`);
+    selecaoIraAtiva = true;
+    limparBordasIra();
+    const modal = document.createElement('div');
+    modal.id = 'modal-selecao-ira-rei-dragao';
+
+  // --- altura e posiçao --- //
+    modal.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000020;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:92vw;box-shadow:0 0 20px #f003;font-family:Arial,sans-serif;';
+
+    modal.innerHTML = '<strong style="color:#ff7777">🐉 Ira do Rei Dragão</strong><div style="font-size:13px;margin-top:5px">Escolha 1 carta no campo do oponente para destruir. Monstros, Magias e Armadilhas válidos ficam com bordas vermelhas.</div>';
+    document.body.appendChild(modal);
+
+    const aplicarBordas = () => {
+      limparBordasIra();
+      if (!selecaoIraAtiva) return;
+      const campoOponente = document.querySelector('.campo-total.campo-oponente');
+      if (!campoOponente) return;
+      const candidatos = campoOponente.querySelectorAll('.slot.monstro, .slot.magia');
+      candidatos.forEach(slot => {
+        const zona = slot.classList.contains('monstro') ? 'monstros' : 'magias';
+        const index = Number(slot.dataset.index);
+        if (!Number.isInteger(index) || !alvosIraAtuais.includes(`${zona}:${index}`)) return;
+        const cartaEl = slot.querySelector('.carta-oponente, .carta-campo, .carta-mao, .carta-monstro, img, [data-nome]') || slot;
+        cartaEl.dataset.iraOutlineAnterior = cartaEl.style.outline || '';
+        cartaEl.dataset.iraOutlineOffsetAnterior = cartaEl.style.outlineOffset || '';
+        cartaEl.style.setProperty('outline','3px solid #ff1d25','important');
+        cartaEl.style.setProperty('outline-offset','-3px','important');
+        cartaEl.style.setProperty('box-shadow','0 0 12px 4px rgba(255,0,0,.85)','important');
+        cartaEl.style.setProperty('cursor','pointer','important');
+        cartaEl.style.setProperty('pointer-events','auto','important');
+        elementosIraBorda.push(cartaEl);
+      });
+    };
+    aplicarBordas();
+    observerIra = new MutationObserver(() => { if (selecaoIraAtiva) aplicarBordas(); });
+    observerIra.observe(document.body, { childList:true, subtree:true });
+  }
+
+  document.addEventListener('click', async event => {
+    if (!selecaoIraAtiva) return;
+    const cartaEl = event.target?.closest?.('.campo-total.campo-oponente .slot.monstro, .campo-total.campo-oponente .slot.magia');
+    if (!cartaEl) return;
+    const zona = cartaEl.classList.contains('monstro') ? 'monstros' : 'magias';
+    const index = Number(cartaEl.dataset.index);
+    if (!Number.isInteger(index) || !alvosIraAtuais.includes(`${zona}:${index}`)) return;
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+    const uidAlvo = alvoIraUid;
+    finalizarSelecaoIra();
+    try {
+      const ref = refIraSala();
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const sala = snap.data() || {};
+      const campo = sala.field?.[uidAlvo] || {};
+      const lista = [...(campo[zona] || [])];
+      const alvo = lista[index];
+      if (!alvo) {
+        if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Essa carta não está mais no campo.');
+        return;
+      }
+      const gy = [...(campo.gy || [])];
+      lista[index] = null;
+      gy.push({ ...alvo, face:'up', destruidoPor:'Ira do Rei Dragão', destruidoEm:Date.now() });
+      const uidDonoArmadilha = uidIraLocal();
+      const magiasDono = [...(sala.field?.[uidDonoArmadilha]?.magias || [])];
+      const idxArmadilha = magiasDono.findIndex(c => c && normIra(c.nome) === 'ira do rei dragao');
+      const gyDono = [...(sala.field?.[uidDonoArmadilha]?.gy || [])];
+      if (idxArmadilha !== -1) {
+        gyDono.push({ ...magiasDono[idxArmadilha], face:'up', ativada:true });
+        magiasDono[idxArmadilha] = null;
+      }
+      const somEvento = { id:`ira_rei_dragao_som_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, criadoEm:Date.now(), origem:'Ira do Rei Dragão' };
+      await updateDoc(ref, {
+        [`field.${uidAlvo}.${zona}`]:lista,
+        [`field.${uidAlvo}.gy`]:gy,
+        [`players.${uidAlvo}.gy`]:gy,
+        [`field.${uidDonoArmadilha}.magias`]:magiasDono,
+        [`field.${uidDonoArmadilha}.gy`]:gyDono,
+        [`players.${uidDonoArmadilha}.gy`]:gyDono,
+        'estado.somOnlineEvento':somEvento,
+        'estado.iraReiDragaoResolucao':null
+      });
+      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'A carta'} foi destruída por Ira do Rei Dragão!`);
+    } catch (erro) {
+      console.error('[Ira do Rei Dragão] Falha ao destruir a carta escolhida:', erro);
+      try { await updateDoc(refIraSala(), { 'estado.iraReiDragaoResolucao': null }); } catch (_) {}
+      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição da carta.');
+    }
+  }, true);
+
+  onSnapshot(refIraSala(), async snap => {
+    if (!snap.exists()) return;
+    const dados = snap.data() || {};
+    sincronizarAvisoIraOponente(dados.estado?.iraReiDragaoResolucao);
+    const evento = dados.estado?.iraReiDragaoPendente;
+    if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 60000) return;
+    await iniciarSelecaoIra(evento);
+  });
+})();
+
+// ================================================== EFEITOS DE MONSTRO ===========================================================
 
 // ================= FUNÇÃO VÍDEO DRAGÃO DO SOL DE 5 CABEÇAS ================= //
 window.tocarInvocacaoDragaoSol = function() {
@@ -12691,240 +12886,6 @@ async function executarTurnoIA(salaId, salaData) {
 async function animarTrajetoAtaque(origemEl, destinoEl, esAtaqueDireto = false) {
     await animarCartaRealAtaque(origemEl, destinoEl, esAtaqueDireto, 550);
 }
-
-/* =====================================================================
-   🐉 ARMADILHA ONLINE — IRA DO REI DRAGÃO
-   Quando um Dragão é destruído por uma carta do oponente, o dono da armadilha
-   escolhe qualquer carta do campo adversário (monstro, Magia ou Armadilha).
-   ===================================================================== */
-(() => {
-  if (window.__iraReiDragaoSistemaInstalado) return;
-  window.__iraReiDragaoSistemaInstalado = true;
-  const normIra = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  const uidIraLocal = () => String(window.userUid || meuUid || '');
-  const refIraSala = () => doc(db, 'salas', salaId);
-  const vistosIra = window.__iraReiDragaoEventosVistos || (window.__iraReiDragaoEventosVistos = new Set());
-  let selecaoIraAtiva = false;
-  let alvoIraUid = null;
-  let alvosIraAtuais = [];
-  let elementosIraBorda = [];
-  let observerIra = null;
-
-  const sincronizarAvisoArmadilhasOponente = (ultimaChama, barreira) => {
-    const uidAtual = uidIraLocal();
-    // O campo oponenteUid é o destinatário explícito do aviso. Usá-lo evita
-    // depender de um UID global que pode ainda estar sendo inicializado no cliente.
-    // O dono nunca deve ver o aviso de oponente; se o destinatário salvo estiver
-    // desatualizado, o UID do dono permite identificar o outro jogador com segurança.
-    const elegivel = r => r?.id && (
-      (r.oponenteUid != null && String(r.oponenteUid) === uidAtual) ||
-      (r.donoUid != null && String(r.donoUid) !== uidAtual)
-    );
-    const resolucao = elegivel(ultimaChama) ? ultimaChama : (elegivel(barreira) ? barreira : null);
-    const idAviso = 'aviso-armadilhas-fenix-barreira-oponente';
-    let aviso = document.getElementById(idAviso);
-    if (!resolucao) { aviso?.remove(); return; }
-    if (!aviso) {
-      aviso = document.createElement('div');
-      aviso.id = idAviso;
-      aviso.setAttribute('role','alert');
-      aviso.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;pointer-events:none;';
-      document.body.appendChild(aviso);
-    }
-    // Reaplica o posicionamento também se estilos globais da arena forem alterados.
-    aviso.style.display = 'block';
-    aviso.style.position = 'fixed';
-    aviso.style.left = '60%';
-    aviso.style.top = '285px';
-    aviso.style.transform = 'translateX(-50%)';
-    aviso.style.zIndex = '10000010';
-    const nome = resolucao === ultimaChama ? 'Última Chama da Fênix' : 'Barreira das Chamas';
-    if (nome === 'Última Chama da Fênix') {
-      aviso.innerHTML = '<strong style="color:#ff7777;font-size:clamp(16px,2.4vw,24px)">O oponente ativou a carta armadilha Última Chama da Fênix!</strong><div style="font-size:14px;margin-top:7px">Aguarde o dono escolher o monstro no Cemitério. Seus ataques ficam bloqueados até a resolução do efeito.</div>';
-    } else {
-      aviso.innerHTML = '<strong style="color:#ff7777;font-size:clamp(16px,2.4vw,24px)">O oponente ativou a carta armadilha Barreira das Chamas!</strong><div style="font-size:14px;margin-top:7px">Seus ataques ficam bloqueados enquanto o efeito da armadilha é resolvido.</div>';
-    }
-  };
-
-  const sincronizarAvisoIraOponente = (resolucao) => {
-    const idAviso = 'aviso-ira-rei-dragao-oponente';
-    let aviso = document.getElementById(idAviso);
-    if (!resolucao?.id || String(resolucao.donoUid) === uidIraLocal()) {
-      aviso?.remove();
-      return;
-    }
-    if (!aviso) {
-      aviso = document.createElement('div');
-      aviso.id = idAviso;
-      aviso.setAttribute('role', 'alert');
-      aviso.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000019;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:92vw;box-shadow:0 0 20px #f003;font-family:Arial,sans-serif;pointer-events:none;';
-      document.body.appendChild(aviso);
-    }
-    aviso.innerHTML = '<strong style="color:#ff7777">⚠️ Armadilha ativada pelo oponente</strong><div style="font-size:13px;margin-top:5px">Ira do Rei Dragão está sendo resolvida. Os ataques ficam bloqueados até o efeito terminar.</div>';
-  };
-
-  const limparBordasIra = () => {
-    elementosIraBorda.forEach(el => {
-      if (!el?.isConnected) return;
-      if (el.dataset.iraOutlineAnterior !== undefined) el.style.outline = el.dataset.iraOutlineAnterior;
-      if (el.dataset.iraOutlineOffsetAnterior !== undefined) el.style.outlineOffset = el.dataset.iraOutlineOffsetAnterior;
-      el.style.removeProperty('box-shadow');
-      el.style.removeProperty('cursor');
-      el.style.removeProperty('pointer-events');
-      delete el.dataset.iraOutlineAnterior;
-      delete el.dataset.iraOutlineOffsetAnterior;
-    });
-    elementosIraBorda = [];
-  };
-  const finalizarSelecaoIra = () => {
-    selecaoIraAtiva = false;
-    alvoIraUid = null;
-    alvosIraAtuais = [];
-    limparBordasIra();
-    document.getElementById('modal-selecao-ira-rei-dragao')?.remove();
-    if (observerIra) { observerIra.disconnect(); observerIra = null; }
-  };
-
-  async function iniciarSelecaoIra(evento) {
-    const uidLocal = uidIraLocal();
-    if (!evento?.id || String(evento.donoUid) !== uidLocal || vistosIra.has(evento.id)) return;
-    vistosIra.add(evento.id);
-    const ref = refIraSala();
-    const resolucaoIra = {
-      id: evento.id,
-      donoUid: uidLocal,
-      oponenteUid: null,
-      iniciadoEm: Date.now(),
-      mensagem: 'O oponente ativou a armadilha Ira do Rei Dragão. Aguarde a resolução do efeito.'
-    };
-    try {
-      await updateDoc(ref, {
-        'estado.iraReiDragaoPendente': null,
-        'estado.iraReiDragaoResolucao': resolucaoIra
-      });
-    } catch (e) {
-      console.warn('[Ira do Rei Dragão] Não foi possível registrar a resolução:', e);
-    }
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    const sala = snap.data() || {};
-    const oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal);
-    if (!oponenteUid) return;
-    try {
-      await updateDoc(ref, {'estado.iraReiDragaoResolucao.oponenteUid': String(oponenteUid)});
-    } catch (e) { console.warn('[Ira do Rei Dragão] Não foi possível definir destinatário do aviso:', e); }
-    const monstros = sala.field?.[oponenteUid]?.monstros || [];
-    const magias = sala.field?.[oponenteUid]?.magias || [];
-    const alvos = [];
-    monstros.forEach((carta,index) => { if (carta) alvos.push({ zona:'monstros', index, carta }); });
-    magias.forEach((carta,index) => { if (carta) alvos.push({ zona:'magias', index, carta }); });
-    if (!alvos.length) {
-      try { await updateDoc(ref, { 'estado.iraReiDragaoResolucao': null }); } catch (_) {}
-      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Ira do Rei Dragão foi ativada, mas o oponente não tem cartas no campo para destruir.');
-      return;
-    }
-
-    alvoIraUid = oponenteUid;
-    alvosIraAtuais = alvos.map(a => `${a.zona}:${a.index}`);
-    selecaoIraAtiva = true;
-    limparBordasIra();
-    const modal = document.createElement('div');
-    modal.id = 'modal-selecao-ira-rei-dragao';
-
-  // --- altura e posiçao --- //
-    modal.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000020;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:92vw;box-shadow:0 0 20px #f003;font-family:Arial,sans-serif;';
-
-    modal.innerHTML = '<strong style="color:#ff7777">🐉 Ira do Rei Dragão</strong><div style="font-size:13px;margin-top:5px">Escolha 1 carta no campo do oponente para destruir. Monstros, Magias e Armadilhas válidos ficam com bordas vermelhas.</div>';
-    document.body.appendChild(modal);
-
-    const aplicarBordas = () => {
-      limparBordasIra();
-      if (!selecaoIraAtiva) return;
-      const campoOponente = document.querySelector('.campo-total.campo-oponente');
-      if (!campoOponente) return;
-      const candidatos = campoOponente.querySelectorAll('.slot.monstro, .slot.magia');
-      candidatos.forEach(slot => {
-        const zona = slot.classList.contains('monstro') ? 'monstros' : 'magias';
-        const index = Number(slot.dataset.index);
-        if (!Number.isInteger(index) || !alvosIraAtuais.includes(`${zona}:${index}`)) return;
-        const cartaEl = slot.querySelector('.carta-oponente, .carta-campo, .carta-mao, .carta-monstro, img, [data-nome]') || slot;
-        cartaEl.dataset.iraOutlineAnterior = cartaEl.style.outline || '';
-        cartaEl.dataset.iraOutlineOffsetAnterior = cartaEl.style.outlineOffset || '';
-        cartaEl.style.setProperty('outline','3px solid #ff1d25','important');
-        cartaEl.style.setProperty('outline-offset','-3px','important');
-        cartaEl.style.setProperty('box-shadow','0 0 12px 4px rgba(255,0,0,.85)','important');
-        cartaEl.style.setProperty('cursor','pointer','important');
-        cartaEl.style.setProperty('pointer-events','auto','important');
-        elementosIraBorda.push(cartaEl);
-      });
-    };
-    aplicarBordas();
-    observerIra = new MutationObserver(() => { if (selecaoIraAtiva) aplicarBordas(); });
-    observerIra.observe(document.body, { childList:true, subtree:true });
-  }
-
-  document.addEventListener('click', async event => {
-    if (!selecaoIraAtiva) return;
-    const cartaEl = event.target?.closest?.('.campo-total.campo-oponente .slot.monstro, .campo-total.campo-oponente .slot.magia');
-    if (!cartaEl) return;
-    const zona = cartaEl.classList.contains('monstro') ? 'monstros' : 'magias';
-    const index = Number(cartaEl.dataset.index);
-    if (!Number.isInteger(index) || !alvosIraAtuais.includes(`${zona}:${index}`)) return;
-    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    const uidAlvo = alvoIraUid;
-    finalizarSelecaoIra();
-    try {
-      const ref = refIraSala();
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const sala = snap.data() || {};
-      const campo = sala.field?.[uidAlvo] || {};
-      const lista = [...(campo[zona] || [])];
-      const alvo = lista[index];
-      if (!alvo) {
-        if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Essa carta não está mais no campo.');
-        return;
-      }
-      const gy = [...(campo.gy || [])];
-      lista[index] = null;
-      gy.push({ ...alvo, face:'up', destruidoPor:'Ira do Rei Dragão', destruidoEm:Date.now() });
-      const uidDonoArmadilha = uidIraLocal();
-      const magiasDono = [...(sala.field?.[uidDonoArmadilha]?.magias || [])];
-      const idxArmadilha = magiasDono.findIndex(c => c && normIra(c.nome) === 'ira do rei dragao');
-      const gyDono = [...(sala.field?.[uidDonoArmadilha]?.gy || [])];
-      if (idxArmadilha !== -1) {
-        gyDono.push({ ...magiasDono[idxArmadilha], face:'up', ativada:true });
-        magiasDono[idxArmadilha] = null;
-      }
-      const somEvento = { id:`ira_rei_dragao_som_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, criadoEm:Date.now(), origem:'Ira do Rei Dragão' };
-      await updateDoc(ref, {
-        [`field.${uidAlvo}.${zona}`]:lista,
-        [`field.${uidAlvo}.gy`]:gy,
-        [`players.${uidAlvo}.gy`]:gy,
-        [`field.${uidDonoArmadilha}.magias`]:magiasDono,
-        [`field.${uidDonoArmadilha}.gy`]:gyDono,
-        [`players.${uidDonoArmadilha}.gy`]:gyDono,
-        'estado.somOnlineEvento':somEvento,
-        'estado.iraReiDragaoResolucao':null
-      });
-      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'A carta'} foi destruída por Ira do Rei Dragão!`);
-    } catch (erro) {
-      console.error('[Ira do Rei Dragão] Falha ao destruir a carta escolhida:', erro);
-      try { await updateDoc(refIraSala(), { 'estado.iraReiDragaoResolucao': null }); } catch (_) {}
-      if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição da carta.');
-    }
-  }, true);
-
-  onSnapshot(refIraSala(), async snap => {
-    if (!snap.exists()) return;
-    const dados = snap.data() || {};
-    // Os avisos de todas as armadilhas são exibidos pelo snapshot principal,
-    // com um único banner compartilhado e sem duplicar mensagens na tela.
-    const evento = dados.estado?.iraReiDragaoPendente;
-    if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 60000) return;
-    await iniciarSelecaoIra(evento);
-  });
-})();
 
  </script>
  </body>
