@@ -3724,79 +3724,47 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
   }
   
   // MONITOR DO DRAGÃO RENASCIDO DAS CHAMAS:
-  // Enquanto esta carta estiver no Cemitério do jogador, compara o Cemitério
-  // em cada snapshot e detecta qualquer novo monstro FOGO de Tributo que entrar nele.
+  // Só dispara com evento explícito criado no momento em que um oponente
+  // destrói um monstro FOGO de Tributo e ele é enviado ao Cemitério do dono.
   try {
-    const normRenascidoMonitor = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const gyRenascidoMonitor = Array.isArray(field[meuUid]?.gy) ? field[meuUid].gy : [];
-    const nomeRenascido = normRenascidoMonitor('Dragão Renascido das Chamas');
-    const temRenascidoNoGy = gyRenascidoMonitor.some(c => c && normRenascidoMonitor(c.nome) === nomeRenascido);
-    const nvRenascidoMonitor = c => {
-      const v = c?.nv ?? c?.NV ?? c?.nivel ?? c?.nivelMonstro;
-      const m = String(v ?? '').match(/\d+/);
-      return m ? Number(m[0]) : NaN;
-    };
-    const chaveCartaRenascidoMonitor = c => [
-      normRenascidoMonitor(c?.nome), normRenascidoMonitor(c?.atributo ?? c?.attribute ?? c?.elemento),
-      String(nvRenascidoMonitor(c)), String(c?.img ?? ''), normRenascidoMonitor(c?.tributo ?? ''),
-      normRenascidoMonitor(c?.tipo ?? c?.tipoMonstro ?? c?.subtipo ?? c?.categoria ?? c?.tipoCarta ?? '')
-    ].join('::');
-    const ehFogoTributoMonitor = c => {
-      if (!c || normRenascidoMonitor(c.nome) === nomeRenascido) return false;
-      const atributo = normRenascidoMonitor(c.atributo ?? c.attribute ?? c.elemento ?? '');
-      const nv = nvRenascidoMonitor(c);
-      const tributoInfo = normRenascidoMonitor(c.tributo ?? '');
-      const tipo = normRenascidoMonitor([c.tipo,c.tipoMonstro,c.subtipo,c.categoria,c.tipoCarta,c.tipo_monstro].filter(Boolean).join(' '));
-      const eMonstro = Boolean(c.atq !== undefined || c.atk !== undefined || c.def !== undefined || /monstro|monster|efeito|dragao|guerreiro|mago|besta/.test(tipo));
-      const exigeTributo = (tributoInfo && !/nenhum|nao|não|a definir|none/.test(tributoInfo)) || /tributo|tribute/.test(tipo) || (Number.isFinite(nv) && nv >= 5);
-      return eMonstro && /fogo|fire/.test(atributo) && Boolean(exigeTributo);
-    };
-    // Assinatura por conteúdo, com contagem de duplicatas; evita depender de id/uid
-    // que muitas cartas não possuem no objeto enviado ao Cemitério.
-    const contagemGyRenascido = gy => {
-      const mapa = new Map();
-      for (const c of gy) if (c) {
-        const chave = chaveCartaRenascidoMonitor(c);
-        mapa.set(chave, (mapa.get(chave) || 0) + 1);
+    const eventoRenascido = estado.dragaoRenascidoChamasPendente;
+    const uidLocalRenascido = String(window.userUid || meuUid || '');
+    if (
+      eventoRenascido?.id &&
+      String(eventoRenascido.donoUid) === uidLocalRenascido &&
+      !window.__dragaoRenascidoEventosProcessados?.has?.(eventoRenascido.id) &&
+      !window.__dragaoRenascidoEfeitoEmAndamento
+    ) {
+      if (!window.__dragaoRenascidoEventosProcessados) {
+        window.__dragaoRenascidoEventosProcessados = new Set();
       }
-      return mapa;
-    };
-    const atualGyRenascido = contagemGyRenascido(gyRenascidoMonitor);
-    const serializarContagemGyRenascido = mapa => [...mapa.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => `${k}#${v}`).join('|');
-    const assinaturaRenascido = serializarContagemGyRenascido(atualGyRenascido);
-    if (!window.__dragaoRenascidoGyMonitorInicializado) {
-      window.__dragaoRenascidoGyMonitorInicializado = true;
-      window.__dragaoRenascidoGyContagem = assinaturaRenascido;
-    } else {
-      const anteriorSerializado = window.__dragaoRenascidoGyContagem || '';
-      if (assinaturaRenascido !== anteriorSerializado) {
-        window.__dragaoRenascidoGyContagem = assinaturaRenascido;
-        const contagemAnterior = new Map(anteriorSerializado.split('|').filter(Boolean).map(item => {
-          const pos = item.lastIndexOf('#');
-          return [item.slice(0,pos), Number(item.slice(pos+1)) || 0];
-        }));
-        const cartasNovas = [];
-        for (const c of gyRenascidoMonitor) {
-          if (!c) continue;
-          const chave = chaveCartaRenascidoMonitor(c);
-          const jaHavia = contagemAnterior.get(chave) || 0;
-          const jaSelecionadas = cartasNovas.filter(x => chaveCartaRenascidoMonitor(x) === chave).length;
-          if (jaSelecionadas >= jaHavia) cartasNovas.push(c);
-        }
-        const novaCartaFogoTributo = cartasNovas.find(ehFogoTributoMonitor);
-        if (temRenascidoNoGy && novaCartaFogoTributo && !window.__dragaoRenascidoEfeitoEmAndamento) {
-          // Não esperamos o campo do oponente atualizar: o GY é a fonte do gatilho.
-          // A verificação anterior do campo causava perda do efeito por corrida entre snapshots.
-          window.__dragaoRenascidoEfeitoEmAndamento = true;
-          Promise.resolve().then(() => window.ativarEfeitoDragaoRenascidoDasChamas?.(
-            gyRenascidoMonitor.find(c => c && normRenascidoMonitor(c.nome) === nomeRenascido)
-          )).catch(err => console.error('[Dragão Renascido das Chamas] Monitor do Cemitério:', err))
-            .finally(() => { window.__dragaoRenascidoEfeitoEmAndamento = false; });
-        }
-      }
+      window.__dragaoRenascidoEventosProcessados.add(eventoRenascido.id);
+      window.__dragaoRenascidoEfeitoEmAndamento = true;
+      // Limpa o gatilho persistido antes de abrir a confirmação, evitando
+      // que novos snapshots reapresentem o mesmo evento.
+      Promise.resolve()
+        .then(async () => {
+          const refEventoRenascido = doc(db, 'salas', salaId);
+          const snapEventoRenascido = await getDoc(refEventoRenascido);
+          const eventoAtualRenascido = snapEventoRenascido.data()?.estado?.dragaoRenascidoChamasPendente;
+          if (eventoAtualRenascido?.id === eventoRenascido.id) {
+            await updateDoc(refEventoRenascido, {'estado.dragaoRenascidoChamasPendente': null});
+          }
+          const gyAtualRenascido = snapEventoRenascido.data()?.field?.[meuUid]?.gy || [];
+          const cartaRenascidoNoGy = gyAtualRenascido.find(c =>
+            c && normalizarDragaoRenascido(c.nome) === normalizarDragaoRenascido('Dragão Renascido das Chamas')
+          );
+          if (!cartaRenascidoNoGy) {
+            console.warn('[Dragão Renascido das Chamas] O gatilho chegou, mas a carta não está mais no Cemitério.');
+            return;
+          }
+          await window.ativarEfeitoDragaoRenascidoDasChamas?.(cartaRenascidoNoGy);
+        })
+        .catch(err => console.error('[Dragão Renascido das Chamas] Falha ao processar gatilho:', err))
+        .finally(() => { window.__dragaoRenascidoEfeitoEmAndamento = false; });
     }
   } catch (erroMonitorRenascido) {
-    console.error('[Dragão Renascido das Chamas] Erro no monitor do Cemitério:', erroMonitorRenascido);
+    console.error('[Dragão Renascido das Chamas] Erro no monitor do evento:', erroMonitorRenascido);
   }
 
   // ⚡ GATILHO DO CAVALEIRO DE COMANDO: RECALCULA O ATQ EM TEMPO REAL ANTES DE RENDERIZAR
@@ -7412,6 +7380,69 @@ if (isBestaSagrada) {
     const iraReiDragaoEvento = motivo !== 'tributo_nv' && ehDragaoDestruidoIra && destruidaPorOponenteIra && indiceIraReiDragao !== -1
       ? { id: `ira_rei_dragao_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, donoUid, indiceArmadilha: indiceIraReiDragao, nomeDragao: cartaDestruida.nome || 'Dragão', criadoEm: Date.now() }
       : null;
+
+    // 🔥 DRAGÃO RENASCIDO DAS CHAMAS:
+    // Cria um gatilho sincronizado apenas quando o jogador que está executando
+    // a ação destrói um monstro FOGO que pertence ao oponente, e esse monstro
+    // não foi usado como Tributo NV. O monitor do dono resolve o efeito depois
+    // que o update do Cemitério chegar ao Firestore.
+    const normalizarRenascidoGatilho = v => String(v ?? '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const modeloRenascidoGatilho = (typeof listaMonstrosFogo !== 'undefined' && Array.isArray(listaMonstrosFogo))
+      ? listaMonstrosFogo.find(c => normalizarRenascidoGatilho(c?.nome) === normalizarRenascidoGatilho(cartaDestruida.nome))
+      : null;
+    const valorNVRenascidoGatilho = c => {
+      const valor = c?.nv ?? c?.NV ?? c?.nivel ?? c?.nivelMonstro ?? c?.['nível'] ?? c?.level;
+      const encontrado = String(valor ?? '').match(/\d+/);
+      return encontrado ? Number(encontrado[0]) : NaN;
+    };
+    const atributoRenascidoGatilho = normalizarRenascidoGatilho(
+      cartaDestruida.atributo ?? cartaDestruida.attribute ?? cartaDestruida.elemento ?? modeloRenascidoGatilho?.atributo ?? ''
+    );
+    const tipoRenascidoGatilho = normalizarRenascidoGatilho([
+      cartaDestruida.tipo, cartaDestruida.tipoMonstro, cartaDestruida.raca,
+      cartaDestruida.raça, cartaDestruida.subtipo, cartaDestruida.categoria,
+      cartaDestruida.tipoCarta, cartaDestruida.tipo_monstro,
+      modeloRenascidoGatilho?.tipo, modeloRenascidoGatilho?.tipoMonstro
+    ].filter(Boolean).join(' '));
+    const nvRenascidoGatilho = valorNVRenascidoGatilho(cartaDestruida);
+    const nvModeloRenascidoGatilho = valorNVRenascidoGatilho(modeloRenascidoGatilho || {});
+    const nvEfetivoRenascidoGatilho = Number.isFinite(nvRenascidoGatilho) ? nvRenascidoGatilho : nvModeloRenascidoGatilho;
+    const infoTributoRenascidoGatilho = normalizarRenascidoGatilho(cartaDestruida.tributo ?? '');
+    const ehMonstroRenascidoGatilho = Boolean(
+      cartaDestruida.atq !== undefined || cartaDestruida.atk !== undefined ||
+      cartaDestruida.def !== undefined || Boolean(modeloRenascidoGatilho) ||
+      /monstro|monster|efeito|dragao|dragon|guerreiro|mago|besta/.test(tipoRenascidoGatilho)
+    );
+    const ehTributoRenascidoGatilho = (
+      Boolean(infoTributoRenascidoGatilho) &&
+      !/nenhum|nao|a definir|none|0 tributo/.test(infoTributoRenascidoGatilho)
+    ) || /tributo|tribute/.test(tipoRenascidoGatilho) ||
+      (Number.isFinite(nvEfetivoRenascidoGatilho) && nvEfetivoRenascidoGatilho >= 5);
+    const ehFogoDeTributoRenascidoGatilho = ehMonstroRenascidoGatilho &&
+      /fogo|fire/.test(atributoRenascidoGatilho) && ehTributoRenascidoGatilho &&
+      normalizarRenascidoGatilho(cartaDestruida.nome) !== normalizarRenascidoGatilho('Dragão Renascido das Chamas');
+    const temDragaoRenascidoNoGY = gyAtual.some(c =>
+      c && normalizarRenascidoGatilho(c.nome) === normalizarRenascidoGatilho('Dragão Renascido das Chamas')
+    );
+    const dragaoRenascidoChamasPendente =
+      motivo !== 'tributo_nv' &&
+      (motivo === 'batalha' || String(donoUid) !== String(meuUid)) &&
+      ehFogoDeTributoRenascidoGatilho &&
+      temDragaoRenascidoNoGY
+        ? {
+            id: `dragao_renascido_chamas_${Date.now()}_${Math.random().toString(36).slice(2,9)}`,
+            donoUid,
+            nomeMonstroDestruido: cartaDestruida.nome || 'Monstro FOGO',
+            motivo: motivo || 'destruicao',
+            criadoEm: Date.now()
+          }
+        : null;
+
+    if (dragaoRenascidoChamasPendente) {
+      console.log('[Dragão Renascido das Chamas] Gatilho criado:', dragaoRenascidoChamasPendente);
+    }
+
     if (motivo === 'batalha' && indiceIraReiDragao !== -1) {
       console.log('[Ira do Rei Dragão] Verificação do gatilho em batalha:', { nome: cartaDestruida.nome, tipos: camposTipoIra, ehDragaoDestruidoIra, eventoCriado: !!iraReiDragaoEvento, donoUid });
     }
@@ -7474,6 +7505,7 @@ if (isBestaSagrada) {
             }
         } : {}),
         ...(iraReiDragaoEvento ? { "estado.iraReiDragaoPendente": iraReiDragaoEvento } : {}),
+        ...(dragaoRenascidoChamasPendente ? { "estado.dragaoRenascidoChamasPendente": dragaoRenascidoChamasPendente } : {}),
         "estado.esquadraoUsadoNoTurno": sala.estado?.esquadraoUsadoNoTurno || {}
     });
     
