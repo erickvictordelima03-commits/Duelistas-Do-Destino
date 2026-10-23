@@ -3196,7 +3196,7 @@ window.tocarAtaqueDragaoSol = function () {
     limparBordasLagarto();
     const fundo = document.createElement('div');
     fundo.id = 'modal-selecao-alvo-lagarto-espada';
-    fundo.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;';
+    fundo.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;';
     fundo.innerHTML = '<strong style="color:#ff7777">Escolha um monstro em Defesa</strong><div style="font-size:12px;margin-top:4px">Os monstros válidos estão destacados com bordas vermelhas.</div><button type="button" style="margin-top:8px;padding:5px 12px;border-radius:6px;border:0;cursor:pointer">Cancelar seleção</button>';
     fundo.querySelector('button').onclick = async () => {
       selecaoLagartoAtiva = false; alvoUidLagarto = null; limparBordasLagarto(); fundo.remove();
