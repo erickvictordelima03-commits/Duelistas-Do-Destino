@@ -3723,52 +3723,80 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
     console.error("[Filhote Dragão Fogo] Erro no monitor do Cemitério:", erroMonitorFilhote);
   }
   
-  // MONITOR DO DRAGÃO RENASCIDO DAS CHAMAS: detecta a entrada de outro
-  // monstro FOGO de Tributo no Cemitério enquanto o Dragão Renascido já está lá.
+  // MONITOR DO DRAGÃO RENASCIDO DAS CHAMAS:
+  // Enquanto esta carta estiver no Cemitério do jogador, compara o Cemitério
+  // em cada snapshot e detecta qualquer novo monstro FOGO de Tributo que entrar nele.
   try {
-    const normRenascidoMonitor = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    const gyRenascidoMonitor = field[meuUid]?.gy || [];
-    const nomeRenascido = normRenascidoMonitor("Dragão Renascido das Chamas");
+    const normRenascidoMonitor = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const gyRenascidoMonitor = Array.isArray(field[meuUid]?.gy) ? field[meuUid].gy : [];
+    const nomeRenascido = normRenascidoMonitor('Dragão Renascido das Chamas');
     const temRenascidoNoGy = gyRenascidoMonitor.some(c => c && normRenascidoMonitor(c.nome) === nomeRenascido);
     const nvRenascidoMonitor = c => {
       const v = c?.nv ?? c?.NV ?? c?.nivel ?? c?.nivelMonstro;
-      const m = String(v ?? "").match(/\d+/);
+      const m = String(v ?? '').match(/\d+/);
       return m ? Number(m[0]) : NaN;
     };
+    const chaveCartaRenascidoMonitor = c => [
+      normRenascidoMonitor(c?.nome), normRenascidoMonitor(c?.atributo ?? c?.attribute ?? c?.elemento),
+      String(nvRenascidoMonitor(c)), String(c?.img ?? ''), normRenascidoMonitor(c?.tributo ?? ''),
+      normRenascidoMonitor(c?.tipo ?? c?.tipoMonstro ?? c?.subtipo ?? c?.categoria ?? c?.tipoCarta ?? '')
+    ].join('::');
     const ehFogoTributoMonitor = c => {
       if (!c || normRenascidoMonitor(c.nome) === nomeRenascido) return false;
-      const atributo = normRenascidoMonitor([c.atributo,c.attribute,c.elemento].filter(Boolean).join(" "));
-      const tipo = normRenascidoMonitor([c.tipo,c.tipoMonstro,c.subtipo,c.categoria,c.tipoCarta].filter(Boolean).join(" "));
+      const atributo = normRenascidoMonitor(c.atributo ?? c.attribute ?? c.elemento ?? '');
       const nv = nvRenascidoMonitor(c);
-      return /fogo|fire/.test(atributo) && Number.isFinite(nv) && nv >= 5 &&
-        (/tributo|tribute/.test(tipo) || nv >= 5);
+      const tributoInfo = normRenascidoMonitor(c.tributo ?? '');
+      const tipo = normRenascidoMonitor([c.tipo,c.tipoMonstro,c.subtipo,c.categoria,c.tipoCarta,c.tipo_monstro].filter(Boolean).join(' '));
+      const eMonstro = Boolean(c.atq !== undefined || c.atk !== undefined || c.def !== undefined || /monstro|monster|efeito|dragao|guerreiro|mago|besta/.test(tipo));
+      const exigeTributo = (tributoInfo && !/nenhum|nao|não|a definir|none/.test(tributoInfo)) || /tributo|tribute/.test(tipo) || (Number.isFinite(nv) && nv >= 5);
+      return eMonstro && /fogo|fire/.test(atributo) && Boolean(exigeTributo);
     };
-    const assinaturaRenascido = gyRenascidoMonitor.map((c,i) => c ? `${String(c.id || c.uid || c.instanceId || c.img || c.nome)}#${i}` : "").filter(Boolean).join("|");
+    // Assinatura por conteúdo, com contagem de duplicatas; evita depender de id/uid
+    // que muitas cartas não possuem no objeto enviado ao Cemitério.
+    const contagemGyRenascido = gy => {
+      const mapa = new Map();
+      for (const c of gy) if (c) {
+        const chave = chaveCartaRenascidoMonitor(c);
+        mapa.set(chave, (mapa.get(chave) || 0) + 1);
+      }
+      return mapa;
+    };
+    const atualGyRenascido = contagemGyRenascido(gyRenascidoMonitor);
+    const serializarContagemGyRenascido = mapa => [...mapa.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => `${k}#${v}`).join('|');
+    const assinaturaRenascido = serializarContagemGyRenascido(atualGyRenascido);
     if (!window.__dragaoRenascidoGyMonitorInicializado) {
       window.__dragaoRenascidoGyMonitorInicializado = true;
-      window.__dragaoRenascidoGyAssinatura = assinaturaRenascido;
-    } else if (assinaturaRenascido !== window.__dragaoRenascidoGyAssinatura) {
-      const anterior = window.__dragaoRenascidoGyAssinatura || "";
-      window.__dragaoRenascidoGyAssinatura = assinaturaRenascido;
-      const idsAnteriores = new Set(anterior.split("|").filter(Boolean).map(x => x.slice(0, x.lastIndexOf("#"))));
-      const novaCartaFogoTributo = gyRenascidoMonitor.find(c => c && ehFogoTributoMonitor(c) &&
-        !idsAnteriores.has(String(c.id || c.uid || c.instanceId || c.img || c.nome)));
-      if (temRenascidoNoGy && novaCartaFogoTributo && !window.__dragaoRenascidoEfeitoEmAndamento) {
-        // Confirma que o monstro de Tributo entrou no GY após uma atualização de campo;
-        // o efeito é resolvido no navegador do dono do Cemitério.
-        window.__dragaoRenascidoEfeitoEmAndamento = true;
-        Promise.resolve().then(async () => {
-          const oponenteUidRenascido = Object.keys(players).find(uid => uid !== meuUid);
-          const campoOponenteRenascido = field[oponenteUidRenascido]?.monstros || [];
-          const nomeNormalizadoAlvo = normRenascidoMonitor(novaCartaFogoTributo.nome);
-          const aindaNoCampoOponente = campoOponenteRenascido.some(c => c && normRenascidoMonitor(c.nome) === nomeNormalizadoAlvo);
-          if (!aindaNoCampoOponente) await window.ativarEfeitoDragaoRenascidoDasChamas?.(gyRenascidoMonitor.find(c => c && normRenascidoMonitor(c.nome) === nomeRenascido));
-        }).catch(err => console.error("[Dragão Renascido das Chamas] Monitor do Cemitério:", err))
-          .finally(() => { window.__dragaoRenascidoEfeitoEmAndamento = false; });
+      window.__dragaoRenascidoGyContagem = assinaturaRenascido;
+    } else {
+      const anteriorSerializado = window.__dragaoRenascidoGyContagem || '';
+      if (assinaturaRenascido !== anteriorSerializado) {
+        window.__dragaoRenascidoGyContagem = assinaturaRenascido;
+        const contagemAnterior = new Map(anteriorSerializado.split('|').filter(Boolean).map(item => {
+          const pos = item.lastIndexOf('#');
+          return [item.slice(0,pos), Number(item.slice(pos+1)) || 0];
+        }));
+        const cartasNovas = [];
+        for (const c of gyRenascidoMonitor) {
+          if (!c) continue;
+          const chave = chaveCartaRenascidoMonitor(c);
+          const jaHavia = contagemAnterior.get(chave) || 0;
+          const jaSelecionadas = cartasNovas.filter(x => chaveCartaRenascidoMonitor(x) === chave).length;
+          if (jaSelecionadas >= jaHavia) cartasNovas.push(c);
+        }
+        const novaCartaFogoTributo = cartasNovas.find(ehFogoTributoMonitor);
+        if (temRenascidoNoGy && novaCartaFogoTributo && !window.__dragaoRenascidoEfeitoEmAndamento) {
+          // Não esperamos o campo do oponente atualizar: o GY é a fonte do gatilho.
+          // A verificação anterior do campo causava perda do efeito por corrida entre snapshots.
+          window.__dragaoRenascidoEfeitoEmAndamento = true;
+          Promise.resolve().then(() => window.ativarEfeitoDragaoRenascidoDasChamas?.(
+            gyRenascidoMonitor.find(c => c && normRenascidoMonitor(c.nome) === nomeRenascido)
+          )).catch(err => console.error('[Dragão Renascido das Chamas] Monitor do Cemitério:', err))
+            .finally(() => { window.__dragaoRenascidoEfeitoEmAndamento = false; });
+        }
       }
     }
   } catch (erroMonitorRenascido) {
-    console.error("[Dragão Renascido das Chamas] Erro no monitor do Cemitério:", erroMonitorRenascido);
+    console.error('[Dragão Renascido das Chamas] Erro no monitor do Cemitério:', erroMonitorRenascido);
   }
 
   // ⚡ GATILHO DO CAVALEIRO DE COMANDO: RECALCULA O ATQ EM TEMPO REAL ANTES DE RENDERIZAR
