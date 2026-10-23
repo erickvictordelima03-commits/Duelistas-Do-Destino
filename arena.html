@@ -3037,11 +3037,16 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
     if (!evento?.id || String(evento.donoUid) !== uidLocal || vistosIra.has(evento.id)) return;
     vistosIra.add(evento.id);
     const ref = refIraSala();
+    const snapInicialIra = await getDoc(ref);
+    const playersIra = snapInicialIra.exists() ? (snapInicialIra.data()?.players || {}) : {};
+    const uidOponenteIra = Object.keys(playersIra).find(uid => String(uid) !== uidLocal) || null;
     const resolucaoIra = {
       id: evento.id,
       donoUid: uidLocal,
+      oponenteUid: uidOponenteIra ? String(uidOponenteIra) : null,
       iniciadoEm: Date.now(),
-      mensagem: 'O oponente ativou a armadilha Ira do Rei Dragão. Aguarde a resolução do efeito.'
+      criadoEm: Date.now(),
+      mensagem: 'O oponente ativou a carta armadilha Ira do Rei Dragão! Aguarde a escolha e a resolução do efeito.'
     };
     try {
       await updateDoc(ref, {
@@ -3147,10 +3152,11 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
         [`field.${uidDonoArmadilha}.magias`]:magiasDono,
         [`field.${uidDonoArmadilha}.gy`]:gyDono,
         [`players.${uidDonoArmadilha}.gy`]:gyDono,
-        'estado.somOnlineEvento':somEvento,
-        'estado.iraReiDragaoResolucao':null
+        'estado.somOnlineEvento':somEvento
       });
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'A carta'} foi destruída por Ira do Rei Dragão!`);
+      // Mantém o aviso do oponente visível, como na Barreira das Chamas.
+      setTimeout(() => updateDoc(ref, { 'estado.iraReiDragaoResolucao': null }).catch(() => {}), 4000);
     } catch (erro) {
       console.error('[Ira do Rei Dragão] Falha ao destruir a carta escolhida:', erro);
       try { await updateDoc(refIraSala(), { 'estado.iraReiDragaoResolucao': null }); } catch (_) {}
@@ -3161,7 +3167,7 @@ async function destruirMagiaEquipada(idxMagia, uidDono) {
   onSnapshot(refIraSala(), async snap => {
     if (!snap.exists()) return;
     const dados = snap.data() || {};
-    sincronizarAvisoIraOponente(dados.estado?.iraReiDragaoResolucao);
+    // O aviso remoto é exibido pelo snapshot principal, no mesmo padrão da Barreira das Chamas.
     const evento = dados.estado?.iraReiDragaoPendente;
     if (!evento?.id || Date.now() - Number(evento.criadoEm || 0) > 60000) return;
     await iniciarSelecaoIra(evento);
@@ -7569,8 +7575,12 @@ if (isBestaSagrada) {
     const uidAtacanteIra = campoAtacanteIra === 'jogavel' ? meuUid : (campoAtacanteIra === 'oponente' ? uidOponenteIra : null);
     // O motivo batalha é uma confirmação confiável de que a destruição ocorreu por combate;
     // não exigir identificação DOM do atacante permite o gatilho também no fluxo da IA.
-    const destruidaPorOponenteIra = motivo === 'batalha'
-      || (!!uidAtacanteIra && String(uidAtacanteIra) !== String(donoUid));
+    const destruidaPorOponenteIra =
+      motivo === 'batalha' ||
+      (!!uidAtacanteIra && String(uidAtacanteIra) !== String(donoUid)) ||
+      // Efeitos são normalmente resolvidos no navegador de quem os ativou.
+      // Se esse navegador envia ao GY um Dragão do outro jogador, o gatilho é válido.
+      (motivo !== 'tributo_nv' && String(donoUid) !== String(meuUid));
     const indiceIraReiDragao = magias.findIndex(m => m && normalizarIraRei(m.nome) === 'ira do rei dragao' && !['up','face-up','cima'].includes(normalizarIraRei(m.face || 'down')));
     const iraReiDragaoEvento = motivo !== 'tributo_nv' && ehDragaoDestruidoIra && destruidaPorOponenteIra && indiceIraReiDragao !== -1
       ? { id: `ira_rei_dragao_${Date.now()}_${Math.random().toString(36).slice(2,9)}`, donoUid, indiceArmadilha: indiceIraReiDragao, nomeDragao: cartaDestruida.nome || 'Dragão', criadoEm: Date.now() }
