@@ -3148,7 +3148,7 @@ window.tocarAtaqueDragaoSol = function () {
           'estado.lagartoEspadaAviso': {
             id: evento.id, donoUid: uidLocal, oponenteUid,
             ativo: true, fase: 'confirmacao',
-            texto: 'O oponente está decidindo se ativa o efeito de Lagarto de Espada.',
+            texto: 'O efeito do Lagarto de Espada está sendo resolvido. Seus monstros não podem atacar até a resolução terminar.',
             criadoEm: Date.now()
           }
         });
@@ -3185,7 +3185,7 @@ window.tocarAtaqueDragaoSol = function () {
     try {
       await updateDoc(ref, { 'estado.lagartoEspadaAviso': {
         id: evento.id, donoUid: uidLocal, oponenteUid, ativo: true,
-        fase: 'selecao', texto: 'O oponente ativou Lagarto de Espada e está escolhendo um monstro em Defesa.',
+        fase: 'selecao', texto: 'O efeito do Lagarto de Espada está sendo resolvido. Seus monstros não podem atacar até a resolução terminar.',
         criadoEm: Date.now()
       }});
     } catch (e) { console.warn('[Lagarto de Espada] Não foi possível atualizar o aviso:', e); }
@@ -3343,7 +3343,8 @@ window.tocarAtaqueDragaoSol = function () {
       banner.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;pointer-events:none;';
       document.body.appendChild(banner);
     }
-    banner.textContent = aviso.texto || 'O oponente está decidindo se ativa o efeito de Lagarto de Espada.';
+    // Mesmo visual e estrutura do aviso do Filhote do Dragão de Fogo, adaptado ao Lagarto.
+    banner.innerHTML = '<strong style="color:#ff7777">🦎 Efeito de monstro ativado</strong><div style="font-size:13px;margin-top:5px">O efeito do Lagarto de Espada está sendo resolvido. Seus monstros não podem atacar até a resolução terminar.</div>';
     avisoLagartoMostradoId = aviso.id;
   });
 
