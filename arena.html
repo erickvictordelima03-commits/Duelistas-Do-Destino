@@ -3215,9 +3215,12 @@ onSnapshot(doc(db, "salas", salaId), async (snap) => {
     const resolucaoBarreira = sala.estado?.barreiraDasChamasResolucao;
     const resolucaoIra = sala.estado?.iraReiDragaoResolucao;
     const resolucaoRessurreicao = sala.estado?.ressurreicaoMortosResolucao;
+    // Mesmo padrão resiliente da Última Chama: o UID do destinatário é preferido,
+    // mas não pode impedir o aviso se estiver desatualizado. Em duelo de dois jogadores,
+    // qualquer cliente que não seja o dono da armadilha é o oponente destinatário.
     const elegivelAviso = r => r?.id && (
       (r.oponenteUid != null && String(r.oponenteUid) === uidLocalAvisoArmadilha) ||
-      (r.oponenteUid == null && r.donoUid != null && String(r.donoUid) !== uidLocalAvisoArmadilha)
+      (r.donoUid != null && String(r.donoUid) !== uidLocalAvisoArmadilha)
     );
     const resolucoesAviso = [
       {resolucao:resolucaoChama, tipo:'chama'},
@@ -6092,7 +6095,20 @@ window.confirmarBarreiraDasChamasAntesDestruicao = async function(carta, donoUid
     if (indice < 0) return false;
 
     let ativar = false;
+    // Publica o aviso ANTES de abrir/aguardar a escolha Sim/Não. Assim, o snapshot
+    // do adversário recebe a resolução no mesmo momento em que o dono vê o prompt.
+    const uidOponenteBarreira = uidLocal && uidLocal !== String(donoUid)
+        ? uidLocal
+        : (Object.keys(sala.players || {}).find(uid => String(uid) !== String(donoUid)) || null);
+    const resolucaoBarreira = {
+        id:`barreira_resolucao_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+        donoUid:String(donoUid),
+        oponenteUid:uidOponenteBarreira ? String(uidOponenteBarreira) : null,
+        mensagem:'O oponente ativou a carta armadilha Barreira das Chamas! Aguarde a decisão e a resolução do efeito.',
+        criadoEm:Date.now()
+    };
     if (uidLocal === String(donoUid)) {
+        await updateDoc(salaRef, {'estado.barreiraDasChamasResolucao':resolucaoBarreira});
         ativar = await barreiraChamasPerguntarAoDono(carta);
     } else {
         const id = `barreira_chamas_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
@@ -6101,7 +6117,12 @@ window.confirmarBarreiraDasChamasAntesDestruicao = async function(carta, donoUid
         const cartaPedido = {nome: String(carta.nome || "Seu monstro FOGO")};
         if (carta.atributo != null) cartaPedido.atributo = carta.atributo;
         if (carta.elemento != null) cartaPedido.elemento = carta.elemento;
-        await updateDoc(salaRef, {"estado.barreiraDasChamasPedido": {id, donoUid:String(donoUid), carta:cartaPedido, motivo:motivoNorm, criadoEm:Date.now()}});
+        // Pedido e aviso são gravados juntos para o outro jogador ver a mensagem
+        // assim que o prompt Sim/Não é disparado no navegador do dono.
+        await updateDoc(salaRef, {
+            "estado.barreiraDasChamasPedido": {id, donoUid:String(donoUid), carta:cartaPedido, motivo:motivoNorm, criadoEm:Date.now()},
+            "estado.barreiraDasChamasResolucao": resolucaoBarreira
+        });
         ativar = await new Promise(resolve => {
             let finalizado = false;
             let unsubscribe = null;
@@ -6121,20 +6142,14 @@ window.confirmarBarreiraDasChamasAntesDestruicao = async function(carta, donoUid
     }
 
     if (!ativar) {
+        // Se o dono escolheu Não (ou expirou), encerra o aviso remoto imediatamente.
+        await updateDoc(salaRef, {'estado.barreiraDasChamasResolucao':null}).catch(()=>{});
         console.log("🛡️ [Barreira das Chamas] O dono recusou ou não confirmou; a destruição continua.");
         return false;
     }
 
-    // Avisa o oponente e bloqueia novos ataques enquanto a proteção é concluída.
-    const snapAviso = await getDoc(salaRef);
-    const salaAviso = snapAviso.exists() ? snapAviso.data() : {};
-    // O aviso deve ir para o adversário do dono da armadilha. Se o evento foi
-    // processado no navegador adversário, preferimos o UID local, como na Última Chama.
-    const uidOponenteBarreira = uidLocal && uidLocal !== String(donoUid)
-        ? uidLocal
-        : (Object.keys(salaAviso.players || {}).find(uid => String(uid) !== String(donoUid)) || null);
-    const resolucaoBarreira = {id:`barreira_resolucao_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, donoUid:String(donoUid), oponenteUid:uidOponenteBarreira ? String(uidOponenteBarreira) : null, mensagem:'⚠️ Seu oponente ativou uma carta armadilha: Barreira das Chamas! Aguarde a resolução antes de atacar.', criadoEm:Date.now()};
-    await updateDoc(salaRef, {'estado.barreiraDasChamasResolucao':resolucaoBarreira});
+    // O aviso já está publicado desde o instante em que o prompt apareceu.
+    // Mantemos o mesmo evento até o efeito terminar, sem criar uma segunda mensagem.
 
     // Revalida a armadilha antes de consumi-la. O monstro permanece no campo.
     const snapFinal = await getDoc(salaRef);
@@ -12353,9 +12368,11 @@ async function animarTrajetoAtaque(origemEl, destinoEl, esAtaqueDireto = false) 
     const uidAtual = uidIraLocal();
     // O campo oponenteUid é o destinatário explícito do aviso. Usá-lo evita
     // depender de um UID global que pode ainda estar sendo inicializado no cliente.
+    // O dono nunca deve ver o aviso de oponente; se o destinatário salvo estiver
+    // desatualizado, o UID do dono permite identificar o outro jogador com segurança.
     const elegivel = r => r?.id && (
       (r.oponenteUid != null && String(r.oponenteUid) === uidAtual) ||
-      (r.oponenteUid == null && r.donoUid != null && String(r.donoUid) !== uidAtual)
+      (r.donoUid != null && String(r.donoUid) !== uidAtual)
     );
     const resolucao = elegivel(ultimaChama) ? ultimaChama : (elegivel(barreira) ? barreira : null);
     const idAviso = 'aviso-armadilhas-fenix-barreira-oponente';
