@@ -3135,20 +3135,60 @@ window.tocarAtaqueDragaoSol = function () {
     eventosGatilhoVistos.add(evento.id);
 
     const ref = refSalaLagarto();
-    // Limpa o gatilho logo no início, para evitar reabertura ao atualizar o campo.
+    // Descobre o oponente e publica o aviso ANTES de abrir a confirmação do dono.
+    let salaInicial = {};
+    let oponenteUid = null;
+    try {
+      const snapInicial = await getDoc(ref);
+      if (snapInicial.exists()) salaInicial = snapInicial.data() || {};
+      oponenteUid = Object.keys(salaInicial.players || {}).find(uid => String(uid) !== uidLocal)
+        || Object.keys(salaInicial.field || {}).find(uid => String(uid) !== uidLocal);
+      if (oponenteUid) {
+        await updateDoc(ref, {
+          'estado.lagartoEspadaAviso': {
+            id: evento.id, donoUid: uidLocal, oponenteUid,
+            ativo: true, fase: 'confirmacao',
+            texto: 'O oponente está decidindo se ativa o efeito de Lagarto de Espada.',
+            criadoEm: Date.now()
+          }
+        });
+      }
+    } catch (e) { console.warn('[Lagarto de Espada] Não foi possível publicar o aviso ao oponente:', e); }
+
+    // Limpa o gatilho logo no início, sem mexer no efeito da carta.
     try { await updateDoc(ref, { 'estado.lagartoEspadaPendente': null }); } catch (e) { console.warn('[Lagarto de Espada] Não foi possível limpar o gatilho:', e); }
     const confirmou = await modalConfirmarLagarto();
-    if (!confirmou) return;
+    if (!confirmou) {
+      try { await updateDoc(ref, { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
+      return;
+    }
 
     const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    if (!snap.exists()) {
+      try { await updateDoc(ref, { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
+      return;
+    }
     const sala = snap.data() || {};
-    const oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal);
-    if (!oponenteUid) return;
+    oponenteUid = Object.keys(sala.players || {}).find(uid => String(uid) !== uidLocal)
+      || Object.keys(sala.field || {}).find(uid => String(uid) !== uidLocal);
+    if (!oponenteUid) {
+      try { await updateDoc(ref, { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
+      return;
+    }
     const monstrosOponente = sala.field?.[oponenteUid]?.monstros || [];
     const alvos = monstrosOponente.map((carta,index)=>({carta,index}))
       .filter(item => estaEmDefesaLagarto(item.carta));
-    if (!alvos.length) { mostrarModalSemAlvosLagarto(); return; }
+    if (!alvos.length) {
+      try { await updateDoc(ref, { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
+      mostrarModalSemAlvosLagarto(); return;
+    }
+    try {
+      await updateDoc(ref, { 'estado.lagartoEspadaAviso': {
+        id: evento.id, donoUid: uidLocal, oponenteUid, ativo: true,
+        fase: 'selecao', texto: 'O oponente ativou Lagarto de Espada e está escolhendo um monstro em Defesa.',
+        criadoEm: Date.now()
+      }});
+    } catch (e) { console.warn('[Lagarto de Espada] Não foi possível atualizar o aviso:', e); }
 
     alvoUidLagarto = oponenteUid;
     selecaoLagartoAtiva = true;
@@ -3158,8 +3198,9 @@ window.tocarAtaqueDragaoSol = function () {
     fundo.id = 'modal-selecao-alvo-lagarto-espada';
     fundo.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;';
     fundo.innerHTML = '<strong style="color:#ff7777">Escolha um monstro em Defesa</strong><div style="font-size:12px;margin-top:4px">Os monstros válidos estão destacados com bordas vermelhas.</div><button type="button" style="margin-top:8px;padding:5px 12px;border-radius:6px;border:0;cursor:pointer">Cancelar seleção</button>';
-    fundo.querySelector('button').onclick = () => {
+    fundo.querySelector('button').onclick = async () => {
       selecaoLagartoAtiva = false; alvoUidLagarto = null; limparBordasLagarto(); fundo.remove();
+      try { await updateDoc(ref, { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
     };
     document.body.appendChild(fundo);
     overlaySelecaoLagarto = fundo;
@@ -3223,13 +3264,15 @@ window.tocarAtaqueDragaoSol = function () {
         [`field.${alvoUidLagarto}.monstros`]: monstros,
         [`field.${alvoUidLagarto}.gy`]: gy,
         [`players.${alvoUidLagarto}.gy`]: gy,
-        'estado.somOnlineEvento': somEvento
+        'estado.somOnlineEvento': somEvento,
+        'estado.lagartoEspadaAviso': null
       });
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena(`${alvo.nome || 'O monstro'} foi destruído pelo efeito de Lagarto de Espada!`);
     } catch (erro) {
       console.error('[Lagarto de Espada] Erro ao destruir o alvo:', erro);
       if (typeof window.mostrarAvisoArena === 'function') window.mostrarAvisoArena('Não foi possível concluir a destruição. Tente novamente.');
     } finally {
+      try { await updateDoc(refSalaLagarto(), { 'estado.lagartoEspadaAviso': null }); } catch (e) {}
       alvoUidLagarto = null;
       window.__lagartoEspadaAlvosAtuais = [];
     }
@@ -3276,6 +3319,32 @@ window.tocarAtaqueDragaoSol = function () {
     if (!evento?.id || !evento.donoUid || String(evento.donoUid) !== uidLocalLagarto()) return;
     if (Date.now() - Number(evento.criadoEm || 0) > 60000) return;
     await iniciarSelecaoAlvoLagarto(evento);
+  });
+
+  // Aviso sincronizado no cliente do oponente: aparece/ some pelo mesmo estado do Firebase.
+  let avisoLagartoMostradoId = null;
+  onSnapshot(refSalaLagarto(), snap => {
+    if (!snap.exists()) return;
+    const aviso = snap.data()?.estado?.lagartoEspadaAviso;
+    const uidLocal = uidLocalLagarto();
+    const idElemento = 'aviso-oponente-lagarto-espada';
+    let banner = document.getElementById(idElemento);
+    const deveMostrar = !!aviso?.ativo && !!aviso.id &&
+      String(aviso.oponenteUid || '') === uidLocal &&
+      Date.now() - Number(aviso.criadoEm || 0) < 120000;
+    if (!deveMostrar) {
+      if (banner) banner.remove();
+      avisoLagartoMostradoId = null;
+      return;
+    }
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = idElemento;
+      banner.style.cssText = 'position:fixed;left:60%;top:285px;transform:translateX(-50%);z-index:10000010;background:#171b24;border:2px solid #e33;border-radius:10px;padding:10px 16px;color:white;text-align:center;max-width:90vw;box-shadow:0 0 18px #f003;font-family:Arial,sans-serif;pointer-events:none;';
+      document.body.appendChild(banner);
+    }
+    banner.textContent = aviso.texto || 'O oponente está decidindo se ativa o efeito de Lagarto de Espada.';
+    avisoLagartoMostradoId = aviso.id;
   });
 
   // Som de destruição sincronizado: cada cliente toca uma vez ao receber o mesmo ID.
