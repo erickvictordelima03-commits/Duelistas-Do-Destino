@@ -5934,8 +5934,28 @@ window.verificarRessurreicaoMortosNoAtaque = async function(donoUid, salaRef, no
 
     let ativar = false;
     if (uidLocal === String(donoUid)) {
+        // Publica o aviso ANTES de abrir a pergunta Sim/Não, igual à Barreira das Chamas.
+        // Assim o onSnapshot do oponente recebe o evento no mesmo momento do prompt do dono.
+        const uidOponenteRessurreicao = Object.keys(sala.players || {})
+            .find(uid => String(uid) !== String(donoUid))
+            || Object.keys(sala.field || {}).find(uid => String(uid) !== String(donoUid))
+            || null;
+        const resolucaoInicialRessurreicao = {
+            id: `ressurreicao_resolucao_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+            donoUid: String(donoUid),
+            oponenteUid: uidOponenteRessurreicao ? String(uidOponenteRessurreicao) : null,
+            mensagem: 'O oponente ativou a carta armadilha Ressurreição dos Mortos! Aguarde a decisão e a escolha do monstro no Cemitério.',
+            criadoEm: Date.now()
+        };
+        await updateDoc(salaRef, {'estado.ressurreicaoMortosResolucao': resolucaoInicialRessurreicao});
         ativar = await ressurreicaoMortosPerguntar();
-        if (ativar) ativar = await ressurreicaoMortosResolverParaDono(donoUid, idx, salaRef, true);
+        if (!ativar) {
+            // Se o dono recusar, encerra o aviso imediatamente.
+            await updateDoc(salaRef, {'estado.ressurreicaoMortosResolucao': null}).catch(() => {});
+        } else {
+            // Se aceitar, o aviso continua ativo durante a seleção e resolução do monstro.
+            ativar = await ressurreicaoMortosResolverParaDono(donoUid, idx, salaRef, true);
+        }
     } else {
         const id = `ressurreicao_mortos_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
         await updateDoc(salaRef, {"estado.ressurreicaoMortosPedido":{id,donoUid:String(donoUid),cartaNome:"Ressurreição dos Mortos",atacanteNome:String(nomeAtacante || "monstro oponente"),criadoEm:Date.now()}});
