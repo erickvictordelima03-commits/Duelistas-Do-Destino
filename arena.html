@@ -5958,7 +5958,15 @@ window.verificarRessurreicaoMortosNoAtaque = async function(donoUid, salaRef, no
         }
     } else {
         const id = `ressurreicao_mortos_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
-        await updateDoc(salaRef, {"estado.ressurreicaoMortosPedido":{id,donoUid:String(donoUid),cartaNome:"Ressurreição dos Mortos",atacanteNome:String(nomeAtacante || "monstro oponente"),criadoEm:Date.now()}});
+        await updateDoc(salaRef, {"estado.ressurreicaoMortosPedido":{
+            id,
+            donoUid:String(donoUid),
+            solicitanteUid:uidLocal,
+            oponenteUid:uidLocal,
+            cartaNome:"Ressurreição dos Mortos",
+            atacanteNome:String(nomeAtacante || "monstro oponente"),
+            criadoEm:Date.now()
+        }});
         ativar = await new Promise(resolve => {
             let finalizado=false, unsubscribe=null;
             // Sem temporizador: a animação fica aguardando até o dono responder.
@@ -5984,8 +5992,36 @@ if (!window.__escutaRessurreicaoMortosIniciada) {
             const uidLocal=String(window.userUid || meuUid || "");
             if (!pedido?.id || String(pedido.donoUid)!==uidLocal || window.__ressurreicaoMortosPedidosVistos.has(pedido.id)) return;
             window.__ressurreicaoMortosPedidosVistos.add(pedido.id);
-            let ativar=await ressurreicaoMortosPerguntar();
-            if (ativar) ativar=await ressurreicaoMortosResolverParaDono(uidLocal, null, doc(db,"salas",salaId), true);
+
+            // PUBLICA O AVISO REMOTO ANTES DE MOSTRAR Sim/Não ao dono.
+            // O pedido chega ao navegador do dono via onSnapshot; este é o ponto
+            // em que a pergunta realmente aparece, então o aviso deve ser gravado aqui.
+            const uidOponenteRessurreicao = String(
+                pedido.solicitanteUid || pedido.oponenteUid ||
+                Object.keys(dados.players || {}).find(uid => String(uid) !== uidLocal) ||
+                Object.keys(dados.field || {}).find(uid => String(uid) !== uidLocal) || ""
+            );
+            const resolucaoAntesDoPrompt = {
+                id: `ressurreicao_resolucao_${pedido.id}`,
+                donoUid: uidLocal,
+                oponenteUid: uidOponenteRessurreicao && uidOponenteRessurreicao !== uidLocal ? uidOponenteRessurreicao : null,
+                mensagem: "O oponente ativou a carta armadilha Ressurreição dos Mortos! Aguarde a decisão e a escolha do monstro no Cemitério.",
+                criadoEm: Date.now()
+            };
+            await updateDoc(doc(db,"salas",salaId), {
+                "estado.ressurreicaoMortosResolucao": resolucaoAntesDoPrompt
+            });
+
+            let ativar = await ressurreicaoMortosPerguntar();
+            if (ativar) {
+                // A resolução mantém/publica o aviso enquanto o dono escolhe o monstro.
+                ativar = await ressurreicaoMortosResolverParaDono(uidLocal, null, doc(db,"salas",salaId), true);
+            } else {
+                // Recusou: remove o aviso para o oponente imediatamente.
+                await updateDoc(doc(db,"salas",salaId), {
+                    "estado.ressurreicaoMortosResolucao": null
+                }).catch(() => {});
+            }
             await updateDoc(doc(db,"salas",salaId),{
                 "estado.ressurreicaoMortosResposta":{id:pedido.id,donoUid:uidLocal,ativar:ativar===true,respondidoEm:Date.now()},
                 "estado.ressurreicaoMortosPedido":null
