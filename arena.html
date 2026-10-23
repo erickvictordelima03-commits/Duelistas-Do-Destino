@@ -12313,6 +12313,17 @@ async function animarTrajetoAtaque(origemEl, destinoEl, esAtaqueDireto = false) 
   }, true);
 
   // Detecta a entrada/virada para cima do Lagarto de Espada em posição de Ataque.
+  // Aceita os formatos de posição/face usados por diferentes caminhos do jogo.
+  const lagartoEstaEmAtaque = carta => {
+    if (!carta) return false;
+    const pos = normalizarNomeLagarto(carta.posicao || carta.pos || 'atq')
+      .replace(/\\s+/g, ' ').trim();
+    const posAtaque = ['atq', 'ataque', 'attack', 'posicao de ataque', 'posição de ataque'];
+    return posAtaque.includes(pos) && estaFaceUpLagarto(carta);
+  };
+  const lagartoEstavaAtivoNoSlot = carta =>
+    normalizarNomeLagarto(carta?.nome) === 'lagarto de espada' && lagartoEstaEmAtaque(carta);
+
   onSnapshot(refSalaLagarto(), async snap => {
     if (!snap.exists()) return;
     const sala = snap.data() || {};
@@ -12323,26 +12334,32 @@ async function animarTrajetoAtaque(origemEl, destinoEl, esAtaqueDireto = false) 
       campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
       return;
     }
+
     const antes = campoAnteriorLagarto || {};
+    // Salva o estado recebido antes de publicar eventos, para evitar reentrada.
     campoAnteriorLagarto = JSON.parse(JSON.stringify(campo));
     if (!uidLocal || !campo[uidLocal]) return;
+
     const atuais = campo[uidLocal].monstros || [];
     const anteriores = antes[uidLocal]?.monstros || [];
     for (let i = 0; i < atuais.length; i++) {
       const carta = atuais[i];
       if (normalizarNomeLagarto(carta?.nome) !== 'lagarto de espada') continue;
-      if (String(carta.posicao || carta.pos || 'atq').toLowerCase() !== 'atq' || !estaFaceUpLagarto(carta)) continue;
-      const velha = anteriores[i];
-      const jaEstavaAtiva = normalizarNomeLagarto(velha?.nome) === 'lagarto de espada' &&
-        String(velha.posicao || velha.pos || 'atq').toLowerCase() === 'atq' && estaFaceUpLagarto(velha);
-      if (jaEstavaAtiva) continue;
-      const idCarta = `${uidLocal}_${i}_${carta.nome}_${carta.img || ''}_${Date.now()}`;
+      if (!lagartoEstaEmAtaque(carta)) continue;
+
+      // Só dispara quando este slot passa de não ativo para face-up em Ataque.
+      // Isso cobre tanto Invocar da mão quanto revelar/virar a carta para Ataque.
+      if (lagartoEstavaAtivoNoSlot(anteriores[i])) continue;
+
+      const idCarta = `${uidLocal}_${i}_${normalizarNomeLagarto(carta.nome)}_${String(carta.img || '')}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
       if (cartasLagartoDetectadas.has(idCarta)) continue;
       cartasLagartoDetectadas.add(idCarta);
       const evento = { id: idCarta, donoUid: uidLocal, index: i, criadoEm: Date.now() };
       try {
         await updateDoc(refSalaLagarto(), { 'estado.lagartoEspadaPendente': evento });
-      } catch (erro) { console.error('[Lagarto de Espada] Falha ao publicar o efeito:', erro); }
+      } catch (erro) {
+        console.error('[Lagarto de Espada] Falha ao publicar o efeito:', erro);
+      }
     }
   });
 
